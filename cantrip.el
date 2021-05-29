@@ -122,5 +122,16 @@
 	 (json (json-read-file filepath)))
     (gethash "scripts" json)))
 
+;; test cantrip--walk-segments with cantrip--get-scripts-from-json-file
+(progn
+  (let* ((ht (make-hash-table))
+	 (sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
+	 (scripts (hash-table-keys sample-content)))
+    (dolist (item scripts)
+      (let ((segments (split-string item ":")))
+	(cantrip--walk-segments segments ht)))
+    ;; (message "%s" (json-encode ht)))
+    ht))
+
 (provide 'cantrip)
 ;;; cantrip.el ends here

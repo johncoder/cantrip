@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "foo": "echo hello",
+    "foo:bar": "echo foo:bar",
+    "foo:baz": "echo foo:baz",
+    "foo:bar:qaz": "echo foo:bar:qaz"
+  }
+}
