@@ -41,7 +41,10 @@
    (seq-uniq
     (mapcar (lambda (i)
 	      (string-join (list i (upcase i)) ""))
-	    (split-string (concat (downcase input) "acdefghijklmnopqrstuvwxyz") "")))
+	    (split-string
+	     (replace-regexp-in-string
+	      "[-]+" ""
+	      (concat (downcase input) "acdefghijklmnopqrstuvwxyz") ""))))
    ""))
 
 (defun cantrip--select-candidate (segment ht)
