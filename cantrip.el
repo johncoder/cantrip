@@ -124,6 +124,15 @@
 	 (json (json-read-file filepath)))
     (gethash "scripts" json)))
 
+(defun cantrip--process-scripts-hash-table (scripts-hash-table)
+  "Process SCRIPTS-HASH-TABLE into a hash-table of aliased commands."
+  (let ((ht (make-hash-table))
+	(scripts (hash-table-keys scripts-hash-table)))
+    (dolist (item scripts)
+      (let ((segments (split-string item ":")))
+	(cantrip--walk-segments segments ht)))
+    ht))
+    
 ;; test cantrip--walk-segments with cantrip--get-scripts-from-json-file
 (progn
   (let* ((ht (make-hash-table))
@@ -131,9 +140,14 @@
 	 (scripts (hash-table-keys sample-content)))
     (dolist (item scripts)
       (let ((segments (split-string item ":")))
-	(cantrip--walk-segments segments ht)))
-    ;; (message "%s" (json-encode ht))
+    	(cantrip--walk-segments segments ht)))
+    (message "%s" (json-encode ht))
     ht))
+
+;; test cantrip--process-scripts-hash-table
+(progn
+  (let ((sample-content (cantrip--get-scripts-from-json-file "./sample.json")))
+    (cantrip--process-scripts-hash-table sample-content)))
 
 (provide 'cantrip)
 ;;; cantrip.el ends here
