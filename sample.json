@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "two": "echo two",
     "foo": "echo hello",
     "foo:bar": "echo foo:bar",
     "foo:baz": "echo foo:baz",

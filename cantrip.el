@@ -10,11 +10,10 @@
 (defun cantrip--symbol (s)
   "Get symbol for S."
   (let ((v (assoc s cantrip--symbol-keys)))
-    (cond ((not v)
-	   (progn
-	     (push (cons s (make-symbol s)) cantrip--symbol-keys)
-	     (cdr (assoc s cantrip--symbol-keys))))
-	  (v (cdr v)))))
+    (if v (cdr v)
+      (progn
+	(push (cons s (make-symbol s)) cantrip--symbol-keys)
+	(cdr (assoc s cantrip--symbol-keys))))))
 
 (defun cantrip-create-transient (alias actions)
   "Create a transient ALIAS manualy using ACTIONS."
@@ -133,7 +132,7 @@
     (dolist (item scripts)
       (let ((segments (split-string item ":")))
 	(cantrip--walk-segments segments ht)))
-    ;; (message "%s" (json-encode ht)))
+    ;; (message "%s" (json-encode ht))
     ht))
 
 (provide 'cantrip)
