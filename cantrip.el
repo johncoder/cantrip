@@ -103,5 +103,13 @@
     (message "%s" (json-encode ht)))
   nil)
 
+(defun cantrip--get-scripts-from-json-file (filepath)
+  "Get a hash of scripts from FILEPATH package.json."
+  (let* ((json-object-type 'hash-table)
+	 (json-key-type 'string)
+	 (json-array-type 'list)
+	 (json (json-read-file filepath)))
+    (gethash "scripts" json)))
+
 (provide 'cantrip)
 ;;; cantrip.el ends here
