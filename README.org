@@ -1,0 +1,2 @@
+* Cantrip
+An emacs package for building transient prefixes from JSON files.
