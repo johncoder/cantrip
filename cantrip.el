@@ -67,60 +67,50 @@
     ;; there are more segments; this segment is a hash
     ((cdr segments)
      (let* ((segment (car segments))
-	    (candidate-strings (split-string (get-key-choices segment) "")))
-       (message "handling segment %s (more...)" segment)
-       ;; iterate candidates until one is used
-       (dolist (candidate-string candidate-strings)
-	 (let* ((candidate (intern candidate-string))
-		(candidate-value (gethash candidate ht)))
-	   (cond
-	     ;; skip empty candidates
-	     ((string= "" candidate-string) ht)
-	     ;; the candidate does not yet have a value
-	     ((eq nil candidate-value)
+	    (segment-key-string (cantrip--select-candidate segment ht))
+	    (segment-key (intern segment-key-string))
+	    (segment-value (gethash segment-key ht)))
+       (cond ((string= "" segment-key-string) ht)
+	     ((eq nil segment-value)
 	      (let ((next-ht (make-hash-table)))
-		;; this next one needs to know its own segment name
 		(puthash (intern "segment") segment next-ht)
-		;; its value is now a new hash-table
-		(puthash candidate next-ht ht)
+		(puthash segment-key next-ht ht)
 		(cantrip--walk-segments (cdr segments) next-ht)
-		(return ht)))
-	     ;; the candidate is already a hash-table
-	     ((hash-table-p candidate-value)
+		ht))
+	     ((hash-table-p segment-value)
 	      (progn
-		(cantrip--walk-segments (cdr segments) candidate-value)
-		(return ht)))
+		(cantrip--walk-segments (cdr segments) segment-value)
+		ht))
 	     ;; the candidate exists, but it's not a hash-table
-	     (t
-	      (let ((next-ht (make-hash-table)))
-		;; this next one needs to know its own segment name
-		(puthash (intern "segment") segment next-ht)
-		;; current value goes in the next hash table
-		(puthash (intern ".") candidate-value next-ht)
-		;; next hash table goes in the current hash table
-		(puthash candidate next-ht ht)
-		;; recur
-		(cantrip--walk-segments (cdr segments) next-ht)
-		(return nil))))))))
+	     (t (let ((next-ht (make-hash-table)))
+		  (puthash (intern ".") segment-value next-ht)
+		  (puthash (intern "segment") segment next-ht)
+		  (puthash segment-key next-ht ht)
+		  (cantrip--walk-segments (cdr segments) next-ht)
+		  nil)))))
 
     ;; (car segments) is a leaf; find a candidate & store it
-    (t
-     (let* ((segment (car segments))
-	    (candidate-strings (split-string (get-key-choices segment) "")))
-       (message "handling leaf segment %s" segment)
-       (dolist (candidate-string candidate-strings)
-	 (let* ((candidate (intern candidate-string)))
-	   (cond ((string= ":" candidate-string) ht) ; invalid option
-		 ((string= "" candidate-string) ht)  ; invalid option
-		 ((gethash candidate ht) ht) ; already exists
-		 ((not (gethash candidate ht)) ; this candidate is available
-		  (progn
-		    (puthash candidate segment ht)
-		    (message "puthash %s %s gethash: %s" candidate segment (gethash candidate ht))
-		    (return ht)))
-		 (t ht))))
-       ht)))
+    (t (let* ((segment (car segments))
+	      (segment-key-string (cantrip--select-candidate segment ht))
+	      (segment-key (intern segment-key-string))
+	      (segment-value (gethash segment-key ht)))
+	 (cond (segment-value ht) ; already exists
+	       ((not segment-value) ; this candidate is available
+		(progn
+		  (puthash segment-key segment ht)
+		  (message "puthash %s %s gethash: %s" segment-key segment segment-value)
+		  ht))
+	       (t ht)))))
   ht)
+
+;; test cantrip--walk-segments
+(progn
+  (let ((ht (make-hash-table)))
+    (dolist (item '("foo:bar:baz" "foo:bar" "foo:qaz" "moo"))
+      (let ((segments (split-string item ":")))
+	(message "segments %s" segments)
+	(cantrip--walk-segments segments ht)))
+    (message "%s" (json-encode ht))))
 
 (provide 'cantrip)
 ;;; cantrip.el ends here
