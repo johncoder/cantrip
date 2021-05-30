@@ -34,6 +34,75 @@
 		      suffixes))
       alias)))
 
+(defun cantrip--internal-symbol-p (value)
+  "Test whether VALUE is an internal symbol."
+  (or (eq (cantrip--symbol "$.") value)
+      (eq (cantrip--symbol "$segment") value)))
+
+(defun cantrip--transient-function-name (namespace segments ht)
+  "Get transient function name from NAMESPACE, SEGMENTS and HT."
+  (string-join (append (list namespace)
+		       segments
+		       (list (gethash (cantrip--symbol "$segment") ht)
+			     "transient"))
+	       "-"))
+
+(defun say-hi (v)
+  "Say hi V."
+  (lambda ()
+    (interactive)
+    (message "hi %s" v)))
+
+(defun cantrip--make-transient (namespace segments ht dispatcher cantrip-transient-cache)
+  "Make a transient in NAMESPACE for SEGMENTS using HT and DISPATCHER with CANTRIP-TRANSIENT-CACHE."
+  (let* ((menu-label (string-join segments ":"))
+	 (transient-function-name (cantrip--transient-function-name namespace segments ht))
+	 (choices (remove-if #'cantrip--internal-symbol-p (hash-table-keys ht)))
+	 (actions (make-vector (+ 1 (length choices)) 0)))
+    (setq counter 0)
+    (aset actions 0 menu-label)
+    (dolist (choice choices)
+      (let* ((choice-value (gethash choice ht))
+	     (label (cond ((stringp choice-value) choice-value)
+			  ((hash-table-p choice-value)
+			   (gethash (cantrip--symbol "$segment") choice-value))))
+	     (handler (cond ((stringp choice-value)
+			     (funcall dispatcher (string-join
+						  (remove-if (lambda (s)
+							       (string= "" s))
+							     (list menu-label label))
+						  ":")))
+			    ((hash-table-p choice-value)
+			     (or (cdr (assoc transient-function-name cantrip-transient-cache))
+				 (cantrip--make-transient namespace
+							  (append segments (list label))
+							  choice-value
+							  dispatcher
+							  cantrip-transient-cache))))))
+	(incf counter 1)
+	(aset actions counter (list (format "%s" choice) label handler))))
+    (push (cons transient-function-name
+		(cantrip-create-transient (intern transient-function-name)
+					  (list "generated doc string" actions)))
+	  cantrip-transient-cache)
+    (cdr (assoc transient-function-name cantrip-transient-cache))))
+
+;; test cantrip--make-transient
+(progn
+  (let ((ht (make-hash-table))
+	(ht2 (make-hash-table))
+	(ctc '()))
+    (puthash (cantrip--symbol "$segment") "taz" ht2)
+    (puthash (cantrip--symbol "n") "new" ht2)
+    (puthash (cantrip--symbol "h") "hue" ht2)
+
+    (puthash (cantrip--symbol "f") "foo" ht)
+    (puthash (cantrip--symbol "b") "bar" ht)
+    (puthash (cantrip--symbol "h") ht2 ht)
+    (puthash (cantrip--symbol "$segment") "lol" ht)
+    (message (json-encode ht))
+    (cantrip--make-transient "cantrip-test" nil ht #'say-hi ctc)))
+
 (defun cantrip--get-key-choices (input)
   "Get a string of possible letter choices from INPUT."
   (string-join
@@ -55,11 +124,11 @@
 	       (candidate-value (gethash candidate ht)))
 	  (if (or (eq nil candidate-value)
 		  (and (hash-table-p candidate-value)
-		       (stringp (gethash (cantrip--symbol "segment") candidate-value))
-		       (string= segment (gethash (cantrip--symbol "segment") candidate-value)))
+		       (stringp (gethash (cantrip--symbol "$segment") candidate-value))
+		       (string= segment (gethash (cantrip--symbol "$segment") candidate-value)))
 		  (and (hash-table-p candidate-value)
-		       (stringp (gethash (cantrip--symbol ".") candidate-value))
-		       (string= segment (gethash (cantrip--symbol ".") candidate-value))))
+		       (stringp (gethash (cantrip--symbol "$.") candidate-value))
+		       (string= segment (gethash (cantrip--symbol "$.") candidate-value))))
 	      (return candidate-string)))))))
 
 ;; test cantrip--select-candidate
@@ -69,7 +138,7 @@
   (puthash (cantrip--symbol "f") 42 ht)
   (puthash (cantrip--symbol "F") 42 ht)
   (puthash (cantrip--symbol "o") 42 ht)
-  ;; (puthash (cantrip--symbol "segment") "foo" ht2)
+  ;; (puthash (cantrip--symbol "$segment") "foo" ht2)
   ;; (puthash (cantrip--symbol "O") ht2 ht)
   (message "%s" (cantrip--select-candidate segment ht))
   (string= "O" (cantrip--select-candidate segment ht)))
@@ -91,14 +160,14 @@
 	     (cantrip--walk-segments (cdr segments) segment-value))
 	    (t (let ((next-ht (make-hash-table)))
 		 (if (not (eq nil segment-value))
-		     (puthash (cantrip--symbol ".") segment-value next-ht))
-		 (puthash (cantrip--symbol "segment") segment next-ht)
+		     (puthash (cantrip--symbol "$.") segment-value next-ht))
+		 (puthash (cantrip--symbol "$segment") segment next-ht)
 		 (puthash segment-key next-ht ht)
 		 (cantrip--walk-segments (cdr segments) next-ht)))))
 
      ;; (car segments) is a leaf; find a candidate & store it
      (t (cond ((hash-table-p segment-value)
-	       (puthash (cantrip--symbol ".") segment segment-value))
+	       (puthash (cantrip--symbol "$.") segment segment-value))
 	      ((not segment-value)
 	       (puthash segment-key segment ht)))))
   ht))
