@@ -4,6 +4,6 @@
     "foo": "ls -la",
     "foo:bar": "git status",
     "foo:baz": "date",
-    "foo:bar:qaz": "cat sample.json | grep \"git\""
+    "foo:bar:qaz": "cat scripts.json | grep \"git\""
   }
 }

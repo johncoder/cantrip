@@ -12,19 +12,19 @@
     (interactive)
     (message "hi %s" v)))
 
-;; test cantrip--make-transient with sample.json
+;; test cantrip--make-transient with scripts.json
 (when cantrip--testing
   (progn
-    (let* ((sample-content (cantrip--get-scripts-from-json-file "./sample3.json"))
+    (let* ((sample-content (cantrip--get-scripts-from-json-file "./scripts.json"))
 	   (ht (cantrip--process-scripts-hash-table sample-content))
 	   (ctc '()))
       ;; (message (json-encode ht))
       (cantrip--make-transient "test-cantrip" nil ht #'say-hi ctc))))
 
-;; test cantrip--make-transient with sample.json, but with projectile compilation
+;; test cantrip--make-transient with scripts.json, but with projectile compilation
 (when cantrip--testing
   (progn
-    (let* ((sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
+    (let* ((sample-content (cantrip--get-scripts-from-json-file "./scripts.json"))
 	   (ht (cantrip--process-scripts-hash-table sample-content))
 	   (ctc '()))
       ;; (message (json-encode ht))
@@ -96,7 +96,7 @@
 (when cantrip--testing
   (progn
     (let* ((ht (make-hash-table))
-	   (sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
+	   (sample-content (cantrip--get-scripts-from-json-file "./scripts.json"))
 	   (scripts (hash-table-keys sample-content)))
       (dolist (item scripts)
 	(let ((segments (split-string item ":")))
@@ -107,7 +107,7 @@
 ;; test cantrip--process-scripts-hash-table
 (when cantrip--testing
   (progn
-    (let ((sample-content (cantrip--get-scripts-from-json-file "./sample.json")))
+    (let ((sample-content (cantrip--get-scripts-from-json-file "./scripts.json")))
       (cantrip--process-scripts-hash-table sample-content))))
 
 ;; test cantrip--split-vector
