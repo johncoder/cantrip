@@ -29,7 +29,6 @@
   "Is S an empty string."
   (string= "" s))
 
-;;;###autoload
 (defun cantrip--autolocate-scripts-file ()
   "Locate the parent directory containing one of the default files."
   (dolist (cantrip-default-file cantrip-default-files)
@@ -39,7 +38,6 @@
 	    (message "cantrip | found scripts file %s" scripts-file)
 	    (return scripts-file)))))
 
-;;;###autoload
 (defun cantrip--create-script-dispatcher (scripts)
   "Create a dispatcher for SCRIPTS."
   (lambda (script-key)
@@ -150,7 +148,6 @@
     (vconcat (reverse result))))
 
 ;; TODO(john): refactor this into something cleaner
-;;;###autoload
 (defun cantrip--make-transient (namespace segments ht dispatcher cantrip-transient-cache)
   "Make a transient in NAMESPACE for SEGMENTS using HT and DISPATCHER with CANTRIP-TRANSIENT-CACHE."
   (let* ((counter 0)
