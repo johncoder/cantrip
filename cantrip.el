@@ -3,19 +3,76 @@
 ;;; Commentary:
 
 ;;; Code:
+(require 'cl)
+(require 'json)
 (require 'transient)
+(require 's)
+(require 'projectile)
 
-(defvar-local cantrip--testing nil)
+;;;###autoload
+(defcustom cantrip-default-files '("package.json" "scripts.json")
+  "Files that Cantrip will automatically use.  Must be at the top level of a git repository.")
+
+;;;###autoload
+(defcustom cantrip-define-global-key-bindings t
+  "Whether to bind some Cantrip commands in the global key map.")
+
 (defvar-local cantrip--symbol-keys '())
 
-(defun cantrip--symbol (s)
-  "Get symbol for S."
-  (let ((v (assoc s cantrip--symbol-keys)))
-    (if v (cdr v)
-      (progn
-	(push (cons s (make-symbol s)) cantrip--symbol-keys)
-	(cdr (assoc s cantrip--symbol-keys))))))
+(defun emptyp (s)
+  "Is S an empty string."
+  (string= "" s))
 
+;;;###autoload
+(defun cantrip--autolocate-scripts-file ()
+  "Locate the parent directory containing one of the default files."
+  (dolist (cantrip-default-file cantrip-default-files)
+    (let ((scripts-file (concat (locate-dominating-file default-directory ".git")
+			       cantrip-default-file)))
+      (if (file-exists-p scripts-file)
+	  (progn
+	    (message "cantrip | found scripts file %s" scripts-file)
+	    (return scripts-file))))))
+
+;;;###autoload
+(defun cantrip--create-script-dispatcher (scripts)
+  "Create a dispatcher for SCRIPTS."
+  (lambda (script-key)
+    (interactive)
+    (let ((script (gethash script-key scripts)))
+      (if script
+	  (cantrip--projectile-compile script)
+	(message "Whoops, script %s not found?" script-key)))))
+
+;;;###autoload
+(defun cantrip-run ()
+  "Run cantrip in the current directory."
+  (interactive)
+  (let* ((script-file-content (cantrip--get-scripts-from-json-file (cantrip--autolocate-scripts-file)))
+	 (ht (cantrip--process-scripts-hash-table script-file-content))
+	 (ctc '()))
+    (cantrip--make-transient "cantrip-auto"
+			     nil ht
+			     (cantrip--create-script-dispatcher script-file-content)
+			     ctc)
+    (funcall #'cantrip-auto-root-transient)))
+
+;;;###autoload
+(progn
+  (defun cantrip-maybe-define-global-key-bindings ()
+    (when cantrip-define-global-key-bindings
+      (let ((map (current-global-map)))
+	(dolist (elt '(("C-x a r" . cantrip-run)))
+          (let ((key (kbd (car elt)))
+		(def (cdr elt)))
+            (unless (or (lookup-key map key)
+			(where-is-internal def (make-sparse-keymap) t))
+              (define-key map key def)))))))
+  (if after-init-time
+      (cantrip-maybe-define-global-key-bindings)
+    (add-hook 'after-init-hook 'cantrip-maybe-define-global-key-bindings t)))
+
+;;;###autoload
 (defun cantrip-create-transient (alias actions)
   "Create a transient ALIAS manualy using ACTIONS."
   (pcase-let ((`(,class ,slots ,suffixes ,docstr ,body)
@@ -35,6 +92,14 @@
 		      suffixes))
       alias)))
 
+(defun cantrip--symbol (s)
+  "Get cantrip symbol for S."
+  (let ((v (assoc s cantrip--symbol-keys)))
+    (if v (cdr v)
+      (progn
+	(push (cons s (make-symbol s)) cantrip--symbol-keys)
+	(cdr (assoc s cantrip--symbol-keys))))))
+
 (defun cantrip--internal-symbol-p (value)
   "Test whether VALUE is an internal symbol."
   (or (eq (cantrip--symbol "$.") value)
@@ -48,16 +113,6 @@
 				  (list (gethash (cantrip--symbol "$segment") ht "root")
 					"transient")))
 	       "-"))
-
-(defun emptyp (s)
-  "Is S an empty string."
-  (string= "" s))
-
-(defun say-hi (v)
-  "Say hi V."
-  (lambda ()
-    (interactive)
-    (message "hi %s" v)))
 
 (defun cantrip--projectile-compile (v)
   "Compile V using projectile."
@@ -88,33 +143,8 @@
 	    (push current result))))
     (vconcat (reverse result))))
 
-;; test cantrip--split-vector
-(when cantrip--testing
-  (progn
-    (cantrip--split-vector ["zero" "one"] 5)))
-
-;; test cantrip--split-vector
-(when cantrip--testing
-  (progn
-    (cantrip--split-vector ["zero" "one" "two" "three" "four" "five" "six" "seven" "eight" "nine" "ten"] 3)))
-
-;; test cantrip--split-vector with lists
-(when cantrip--testing
-  (progn
-    (cantrip--split-vector ["THIS SHOULD GO MISSING"
-			    ("one" 1 2 3)
-			    ("two" 1 2 3)
-			    ("three" 1 2 3)
-			    ("four" 1 2 3)
-			    ("five" 1 2 3)
-			    ("six" 1 2 3)
-			    ("seven" 1 2 3)
-			    ("eight" 1 2 3)
-			    ("nine" 1 2 3)
-			    ("ten" 1 2 3)]
-			   3)))
-
 ;; TODO(john): refactor this into something cleaner
+;;;###autoload
 (defun cantrip--make-transient (namespace segments ht dispatcher cantrip-transient-cache)
   "Make a transient in NAMESPACE for SEGMENTS using HT and DISPATCHER with CANTRIP-TRANSIENT-CACHE."
   (let* ((counter 0)
@@ -124,6 +154,7 @@
 		   (remove-if #'cantrip--internal-symbol-p (hash-table-keys ht))
 		   #'string-collate-lessp))
 	 (actions (make-vector (+ 1 (length choices)) 0)))
+    ;; (message "cantrip | creating transient: %s" transient-function-name)
     (aset actions 0 (if (string= "" menu-label) namespace menu-label))
     (dolist (choice choices)
       (incf counter 1)
@@ -179,60 +210,6 @@
 		cantrip-transient-cache)))
     cantrip-transient-cache))
 
-;; test cantrip--make-transient with sample.json
-(when cantrip--testing
-  (progn
-    (let* ((sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
-	   (ht (cantrip--process-scripts-hash-table sample-content))
-	   (ctc '()))
-      ;; (message (json-encode ht))
-      (cantrip--make-transient "test-cantrip" nil ht #'say-hi ctc))))
-
-;; test cantrip--make-transient with sample.json, but with projectile compilation
-(when cantrip--testing
-  (progn
-    (let* ((sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
-	   (ht (cantrip--process-scripts-hash-table sample-content))
-	   (ctc '()))
-      ;; (message (json-encode ht))
-      (cantrip--make-transient "test-cantrip" nil ht
-			       (lambda (script-key)
-				 (interactive)
-				 (let ((script (gethash script-key sample-content)))
-				   (if script
-				       (cantrip--projectile-compile script)
-				     (message "Whoops, script %s not found?" script-key))))
-			       ctc))))
-
-;; test cantrip--make-transient
-(when cantrip--testing
-  (progn
-    (let ((ht (make-hash-table))
-	  (ht2 (make-hash-table))
-	  (ctc '()))
-      (puthash (cantrip--symbol "$segment") "taz" ht2)
-      (puthash (cantrip--symbol "n") "new" ht2)
-      (puthash (cantrip--symbol "h") "hue" ht2)
-
-      (puthash (cantrip--symbol "f") "foo" ht)
-      (puthash (cantrip--symbol "b") "bar" ht)
-      (puthash (cantrip--symbol "h") ht2 ht)
-      (puthash (cantrip--symbol "$segment") "lol" ht)
-      (message (json-encode ht))
-      (cantrip--make-transient "cantrip-test" nil ht #'say-hi ctc))))
-
-;; test cantrip-create-transient
-(when cantrip--testing
-  (let ((actions (make-vector 3 0)))
-    (progn
-      (aset actions 0 "Menu")
-      (aset actions 1
-	    (list "f" "Foo helloski" (lambda () (interactive) (message "Hi world"))))
-      (aset actions 2
-	    (list "d" "doit" (lambda () (interactive) (message "hi from dorp"))))
-      (cantrip-create-transient (intern "test-cantrip-transient")
-				(list "this is the doc string" actions)))))
-
 (defun cantrip--get-key-choices (input)
   "Get a string of possible letter choices from INPUT."
   (string-join
@@ -260,19 +237,6 @@
 		       (stringp (gethash (cantrip--symbol "$.") candidate-value))
 		       (string= segment (gethash (cantrip--symbol "$.") candidate-value))))
 	      (return candidate-string)))))))
-
-;; test cantrip--select-candidate
-(when cantrip--testing
-  (let ((ht (make-hash-table))
-	(segment "foo")
-	(ht2 (make-hash-table)))
-    (puthash (cantrip--symbol "f") 42 ht)
-    (puthash (cantrip--symbol "F") 42 ht)
-    (puthash (cantrip--symbol "o") 42 ht)
-    ;; (puthash (cantrip--symbol "$segment") "foo" ht2)
-    ;; (puthash (cantrip--symbol "O") ht2 ht)
-    (message "%s" (cantrip--select-candidate segment ht))
-    (string= "O" (cantrip--select-candidate segment ht))))
 
 (defun cantrip--walk-segments (segments ht)
   "Recur on SEGMENTS nesting each segment under hash-table HT."
@@ -303,20 +267,6 @@
 	       (puthash segment-key segment ht)))))
   ht))
 
-;; test cantrip--walk-segments
-(when cantrip--testing
-  (progn
-    (let ((ht (make-hash-table)))
-      (dolist (item '("foo:bar:baz"
-		      "foo:bar"
-		      "foo:qaz"
-		      "moo"))
-	(let ((segments (split-string item ":")))
-	  ;; (message "segments %s" segments)
-	  (cantrip--walk-segments segments ht)))
-      (message "%s" (json-encode ht)))
-    nil))
-
 (defun cantrip--get-scripts-from-json-file (filepath)
   "Get a hash of scripts from json in FILEPATH."
   (let* ((json-object-type 'hash-table)
@@ -334,23 +284,5 @@
 	(cantrip--walk-segments segments ht)))
     ht))
     
-;; test cantrip--walk-segments with cantrip--get-scripts-from-json-file
-(when cantrip--testing
-  (progn
-    (let* ((ht (make-hash-table))
-	   (sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
-	   (scripts (hash-table-keys sample-content)))
-      (dolist (item scripts)
-	(let ((segments (split-string item ":")))
-	  (cantrip--walk-segments segments ht)))
-      (message "%s" (json-encode ht))
-      ht)))
-
-;; test cantrip--process-scripts-hash-table
-(when cantrip--testing
-  (progn
-    (let ((sample-content (cantrip--get-scripts-from-json-file "./sample.json")))
-      (cantrip--process-scripts-hash-table sample-content))))
-
 (provide 'cantrip)
 ;;; cantrip.el ends here
