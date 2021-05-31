@@ -25,7 +25,7 @@
 
 (defvar-local cantrip--symbol-keys '())
 
-(defun emptyp (s)
+(defun cantrip--empty-p (s)
   "Is S an empty string."
   (string= "" s))
 
@@ -114,7 +114,7 @@
 
 (defun cantrip--transient-function-name (namespace segments ht)
   "Get transient function name from NAMESPACE, SEGMENTS and HT."
-  (string-join (remove-if #'emptyp
+  (string-join (remove-if #'cantrip--empty-p
 			  (append (list namespace)
 				  segments
 				  (list (gethash (cantrip--symbol "$segment") ht "root")
@@ -178,7 +178,7 @@
 						       (list menu-label)
 						       ":"))
 				(funcall dispatcher (string-join
-						      (remove-if #'emptyp
+						      (remove-if #'cantrip--empty-p
 								 (list menu-label label))
 						     ":"))))
 			    ((hash-table-p choice-value)
