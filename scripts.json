@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "two": "pwd",
+    "foo": "ls -la",
+    "foo:bar": "git status",
+    "foo:baz": "date",
+    "foo:bar:qaz": "cat sample.json | grep \"git\""
+  }
+}
