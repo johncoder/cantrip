@@ -5,6 +5,7 @@
 ;;; Code:
 (require 'transient)
 
+(defvar-local cantrip--testing nil)
 (defvar-local cantrip--symbol-keys '())
 
 (defun cantrip--symbol (s)
@@ -41,11 +42,16 @@
 
 (defun cantrip--transient-function-name (namespace segments ht)
   "Get transient function name from NAMESPACE, SEGMENTS and HT."
-  (string-join (append (list namespace)
-		       segments
-		       (list (gethash (cantrip--symbol "$segment") ht)
-			     "transient"))
+  (string-join (remove-if #'emptyp
+			  (append (list namespace)
+				  segments
+				  (list (gethash (cantrip--symbol "$segment") ht "root")
+					"transient")))
 	       "-"))
+
+(defun emptyp (s)
+  "Is S an empty string."
+  (string= "" s))
 
 (defun say-hi (v)
   "Say hi V."
@@ -53,55 +59,97 @@
     (interactive)
     (message "hi %s" v)))
 
+;; TODO(john): refactor this into something cleaner
 (defun cantrip--make-transient (namespace segments ht dispatcher cantrip-transient-cache)
   "Make a transient in NAMESPACE for SEGMENTS using HT and DISPATCHER with CANTRIP-TRANSIENT-CACHE."
-  (let* ((menu-label (string-join segments ":"))
+  (let* ((counter 0)
+	 (menu-label (string-join segments ":"))
 	 (transient-function-name (cantrip--transient-function-name namespace segments ht))
 	 (choices (remove-if #'cantrip--internal-symbol-p (hash-table-keys ht)))
 	 (actions (make-vector (+ 1 (length choices)) 0)))
-    (setq counter 0)
-    (aset actions 0 menu-label)
+    (aset actions 0 (if (string= "" menu-label) namespace menu-label))
     (dolist (choice choices)
+      (incf counter 1)
       (let* ((choice-value (gethash choice ht))
-	     (label (cond ((stringp choice-value) choice-value)
+	     (label (cond ((stringp choice-value)
+			   (if (string= "$." choice-value)
+			       menu-label
+			     choice-value))
 			  ((hash-table-p choice-value)
-			   (gethash (cantrip--symbol "$segment") choice-value))))
+			   (format "%s (more)" (gethash (cantrip--symbol "$segment") choice-value)))
+			  (t (progn (message "Unexpected type for label") nil))))
 	     (handler (cond ((stringp choice-value)
-			     (funcall dispatcher (string-join
-						  (remove-if (lambda (s)
-							       (string= "" s))
-							     (list menu-label label))
-						  ":")))
+			      (if (string= "$." choice-value)
+				  (funcall dispatcher (string-join
+						       (list menu-label)
+						       ":"))
+				(funcall dispatcher (string-join
+						      (remove-if #'emptyp
+								 (list menu-label label))
+						     ":"))))
 			    ((hash-table-p choice-value)
-			     (or (cdr (assoc transient-function-name cantrip-transient-cache))
-				 (cantrip--make-transient namespace
-							  (append segments (list label))
-							  choice-value
-							  dispatcher
-							  cantrip-transient-cache))))))
-	(incf counter 1)
-	(aset actions counter (list (format "%s" choice) label handler))))
-    (push (cons transient-function-name
-		(cantrip-create-transient (intern transient-function-name)
-					  (list "generated doc string" actions)))
-	  cantrip-transient-cache)
-    (cdr (assoc transient-function-name cantrip-transient-cache))))
+			     (let* ((segment-name (gethash (cantrip--symbol "$segment") choice-value))
+				    (next-transient-function-name
+				     (cantrip--transient-function-name namespace
+								       (append segments (list segment-name))
+								       choice-value)))
+			       (if (not (assoc next-transient-function-name cantrip-transient-cache))
+				   (progn
+				     (setq cantrip-transient-cache
+					   (append cantrip-transient-cache
+						   (cantrip--make-transient namespace
+									    (append segments (list segment-name))
+									    choice-value
+									    dispatcher
+									    cantrip-transient-cache)))))
+			       (cdr (assoc next-transient-function-name cantrip-transient-cache))))
+			    (t (progn (message "Unexpected type for handler") nil)))))
+        (aset actions counter (list (format "%s" choice) label handler))))
+    (if (> (length choices) 0)
+	(progn
+	  (push (cons transient-function-name
+		      (cantrip-create-transient (intern transient-function-name)
+						(list "generated doc string" actions)))
+		cantrip-transient-cache)))
+    cantrip-transient-cache))
+
+;; test cantrip--make-transient with sample.json
+(when cantrip--testing
+  (progn
+    (let* ((sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
+	   (ht (cantrip--process-scripts-hash-table sample-content))
+	   (ctc '()))
+      ;; (message (json-encode ht))
+      (cantrip--make-transient "test-cantrip" nil ht #'say-hi ctc))))
 
 ;; test cantrip--make-transient
-(progn
-  (let ((ht (make-hash-table))
-	(ht2 (make-hash-table))
-	(ctc '()))
-    (puthash (cantrip--symbol "$segment") "taz" ht2)
-    (puthash (cantrip--symbol "n") "new" ht2)
-    (puthash (cantrip--symbol "h") "hue" ht2)
+(when cantrip--testing
+  (progn
+    (let ((ht (make-hash-table))
+	  (ht2 (make-hash-table))
+	  (ctc '()))
+      (puthash (cantrip--symbol "$segment") "taz" ht2)
+      (puthash (cantrip--symbol "n") "new" ht2)
+      (puthash (cantrip--symbol "h") "hue" ht2)
 
-    (puthash (cantrip--symbol "f") "foo" ht)
-    (puthash (cantrip--symbol "b") "bar" ht)
-    (puthash (cantrip--symbol "h") ht2 ht)
-    (puthash (cantrip--symbol "$segment") "lol" ht)
-    (message (json-encode ht))
-    (cantrip--make-transient "cantrip-test" nil ht #'say-hi ctc)))
+      (puthash (cantrip--symbol "f") "foo" ht)
+      (puthash (cantrip--symbol "b") "bar" ht)
+      (puthash (cantrip--symbol "h") ht2 ht)
+      (puthash (cantrip--symbol "$segment") "lol" ht)
+      (message (json-encode ht))
+      (cantrip--make-transient "cantrip-test" nil ht #'say-hi ctc))))
+
+;; test cantrip-create-transient
+(when cantrip--testing
+  (let ((actions (make-vector 3 0)))
+    (progn
+      (aset actions 0 "Menu")
+      (aset actions 1
+	    (list "f" "Foo helloski" (lambda () (interactive) (message "Hi world"))))
+      (aset actions 2
+	    (list "d" "doit" (lambda () (interactive) (message "hi from dorp"))))
+      (cantrip-create-transient (intern "test-cantrip-transient")
+				(list "this is the doc string" actions)))))
 
 (defun cantrip--get-key-choices (input)
   "Get a string of possible letter choices from INPUT."
@@ -117,7 +165,7 @@
 
 (defun cantrip--select-candidate (segment ht)
   "Get a candidate from SEGMENT for use in HT."
-  (let ((candidate-strings (split-string (get-key-choices segment) "")))
+  (let ((candidate-strings (split-string (cantrip--get-key-choices segment) "")))
     (dolist (candidate-string candidate-strings)
       (unless (string= "" candidate-string)
 	(let* ((candidate (cantrip--symbol candidate-string))
@@ -132,16 +180,17 @@
 	      (return candidate-string)))))))
 
 ;; test cantrip--select-candidate
-(let ((ht (make-hash-table))
-      (segment "foo")
-      (ht2 (make-hash-table)))
-  (puthash (cantrip--symbol "f") 42 ht)
-  (puthash (cantrip--symbol "F") 42 ht)
-  (puthash (cantrip--symbol "o") 42 ht)
-  ;; (puthash (cantrip--symbol "$segment") "foo" ht2)
-  ;; (puthash (cantrip--symbol "O") ht2 ht)
-  (message "%s" (cantrip--select-candidate segment ht))
-  (string= "O" (cantrip--select-candidate segment ht)))
+(when cantrip--testing
+  (let ((ht (make-hash-table))
+	(segment "foo")
+	(ht2 (make-hash-table)))
+    (puthash (cantrip--symbol "f") 42 ht)
+    (puthash (cantrip--symbol "F") 42 ht)
+    (puthash (cantrip--symbol "o") 42 ht)
+    ;; (puthash (cantrip--symbol "$segment") "foo" ht2)
+    ;; (puthash (cantrip--symbol "O") ht2 ht)
+    (message "%s" (cantrip--select-candidate segment ht))
+    (string= "O" (cantrip--select-candidate segment ht))))
 
 (defun cantrip--walk-segments (segments ht)
   "Recur on SEGMENTS nesting each segment under hash-table HT."
@@ -173,20 +222,21 @@
   ht))
 
 ;; test cantrip--walk-segments
-(progn
-  (let ((ht (make-hash-table)))
-    (dolist (item '("foo:bar:baz"
-		    "foo:bar"
-		    "foo:qaz"
-		    "moo"))
-      (let ((segments (split-string item ":")))
-	;; (message "segments %s" segments)
-	(cantrip--walk-segments segments ht)))
-    (message "%s" (json-encode ht)))
-  nil)
+(when cantrip--testing
+  (progn
+    (let ((ht (make-hash-table)))
+      (dolist (item '("foo:bar:baz"
+		      "foo:bar"
+		      "foo:qaz"
+		      "moo"))
+	(let ((segments (split-string item ":")))
+	  ;; (message "segments %s" segments)
+	  (cantrip--walk-segments segments ht)))
+      (message "%s" (json-encode ht)))
+    nil))
 
 (defun cantrip--get-scripts-from-json-file (filepath)
-  "Get a hash of scripts from FILEPATH package.json."
+  "Get a hash of scripts from json in FILEPATH."
   (let* ((json-object-type 'hash-table)
 	 (json-key-type 'string)
 	 (json-array-type 'list)
@@ -203,20 +253,22 @@
     ht))
     
 ;; test cantrip--walk-segments with cantrip--get-scripts-from-json-file
-(progn
-  (let* ((ht (make-hash-table))
-	 (sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
-	 (scripts (hash-table-keys sample-content)))
-    (dolist (item scripts)
-      (let ((segments (split-string item ":")))
-    	(cantrip--walk-segments segments ht)))
-    (message "%s" (json-encode ht))
-    ht))
+(when cantrip--testing
+  (progn
+    (let* ((ht (make-hash-table))
+	   (sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
+	   (scripts (hash-table-keys sample-content)))
+      (dolist (item scripts)
+	(let ((segments (split-string item ":")))
+	  (cantrip--walk-segments segments ht)))
+      (message "%s" (json-encode ht))
+      ht)))
 
 ;; test cantrip--process-scripts-hash-table
-(progn
-  (let ((sample-content (cantrip--get-scripts-from-json-file "./sample.json")))
-    (cantrip--process-scripts-hash-table sample-content)))
+(when cantrip--testing
+  (progn
+    (let ((sample-content (cantrip--get-scripts-from-json-file "./sample.json")))
+      (cantrip--process-scripts-hash-table sample-content))))
 
 (provide 'cantrip)
 ;;; cantrip.el ends here
