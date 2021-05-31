@@ -1,19 +1,30 @@
-;;; cantrip.el -- quick and easy transients -*- lexical-binding: t; -*-
+;;; cantrip.el --- Quick and easy transients from json -*- lexical-binding: t; -*-
 
 ;; Copyright (c) John Nelson
 
 ;; Author: John Nelson <jnelson@johncoder.com>
+;; Homepage: https://github.com/johncoder/cantrip
 ;; Keywords: lisp
 ;; Version: 0.1.0
+;; Package-Requires: ((emacs "25.1") (transient "0.3.0") (projectile "2.0.0"))
+;; File: cantrip.el
+
+;; This file is NOT part of GNU Emacs.
 
 ;;; Commentary:
 
+;; cantrip.el is a package that can use JSON to create transient prefixes.
+
+;; Cantrip will bind C-x a r to cantrip-run.  It will look for a
+;; parent directory that is a git repository, and parse a JSON file
+;; containing scripts.
+
 ;;; Code:
-(require 'cl)
+(require 'cl-lib)
 (require 'json)
-(require 'transient)
 (require 's)
 (require 'projectile)
+(require 'transient)
 
 ;;;###autoload
 (defcustom cantrip-default-files '("package.json" "scripts.json")
