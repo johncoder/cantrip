@@ -203,19 +203,15 @@
 				 (funcall (cdr (assoc next-transient-function-name cantrip-transient-cache))))))
 			    (t (progn (message "cantrip | unexpected type for handler") nil)))))
         (aset actions counter (list (format "%s" choice) label handler))))
-    (if (> (length choices) 0)
-	(progn
-	  (push (cons transient-function-name
-		      (cantrip-create-transient (intern transient-function-name)
-						(let* ((stuff (vconcat (vector menu-label)
-								       (cantrip--split-vector actions 10)))
-						       (thingies (list "generated doc string" stuff)))
-						  ;; NOTE(john): these are here for debugging :sweat-smile:
-						  ;; (pp (cantrip--split-vector actions 5))
-						  ;; (pp actions)
-						  ;; (pp thingies)
-						  thingies)))
-		cantrip-transient-cache)))
+    (when (> (length choices) 0)
+      ;; This calls defalias on the symbol identified by transient-function-name, which is used below
+      (cantrip-create-transient (intern transient-function-name)
+				(list "generated doc string"
+				      (vconcat (vector menu-label)
+					       (cantrip--split-vector actions 10))))
+      (push (cons transient-function-name
+		  (intern transient-function-name))
+	    cantrip-transient-cache))
     cantrip-transient-cache))
 
 (defun cantrip--get-key-choices (input)
