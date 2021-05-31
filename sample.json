@@ -1,9 +1,9 @@
 {
   "scripts": {
-    "two": "echo two",
-    "foo": "echo hello",
-    "foo:bar": "echo foo:bar",
-    "foo:baz": "echo foo:baz",
-    "foo:bar:qaz": "echo foo:bar:qaz"
+    "two": "pwd",
+    "foo": "ls -la",
+    "foo:bar": "git status",
+    "foo:baz": "date",
+    "foo:bar:qaz": "cat sample.json | grep \"git\""
   }
 }

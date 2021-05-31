@@ -59,6 +59,18 @@
     (interactive)
     (message "hi %s" v)))
 
+(defun cantrip--projectile-compile (v)
+  "Compile V using projectile."
+  (lambda ()
+    (interactive)
+    (projectile-run-compilation v)))
+
+(defun cantrip--projectile-compile-echo (v)
+  "Compile V using projectile."
+  (lambda ()
+    (interactive)
+    (projectile-run-compilation (format "echo %s" v))))
+
 (defun cantrip--split-vector (v quantity)
   "Split vector V into groups of size QUANTITY."
   (let* ((current (make-vector (min quantity (- (length v) 1)) 0))
@@ -175,6 +187,22 @@
 	   (ctc '()))
       ;; (message (json-encode ht))
       (cantrip--make-transient "test-cantrip" nil ht #'say-hi ctc))))
+
+;; test cantrip--make-transient with sample.json, but with projectile compilation
+(when cantrip--testing
+  (progn
+    (let* ((sample-content (cantrip--get-scripts-from-json-file "./sample.json"))
+	   (ht (cantrip--process-scripts-hash-table sample-content))
+	   (ctc '()))
+      ;; (message (json-encode ht))
+      (cantrip--make-transient "test-cantrip" nil ht
+			       (lambda (script-key)
+				 (interactive)
+				 (let ((script (gethash script-key sample-content)))
+				   (if script
+				       (cantrip--projectile-compile script)
+				     (message "Whoops, script %s not found?" script-key))))
+			       ctc))))
 
 ;; test cantrip--make-transient
 (when cantrip--testing
