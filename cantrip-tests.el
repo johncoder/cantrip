@@ -16,8 +16,8 @@
 (when cantrip--testing
   (progn
     (let* ((sample-content (cantrip--get-scripts-from-json-file "./scripts.json"))
-	   (ht (cantrip--process-scripts-hash-table sample-content))
-	   (ctc '()))
+           (ht (cantrip--process-scripts-hash-table sample-content))
+           (ctc '()))
       ;; (message (json-encode ht))
       (cantrip--make-transient "test-cantrip" nil ht #'say-hi ctc))))
 
@@ -25,24 +25,24 @@
 (when cantrip--testing
   (progn
     (let* ((sample-content (cantrip--get-scripts-from-json-file "./scripts.json"))
-	   (ht (cantrip--process-scripts-hash-table sample-content))
-	   (ctc '()))
+           (ht (cantrip--process-scripts-hash-table sample-content))
+           (ctc '()))
       ;; (message (json-encode ht))
       (cantrip--make-transient "test-cantrip" nil ht
-			       (lambda (script-key)
-				 (interactive)
-				 (let ((script (gethash script-key sample-content)))
-				   (if script
-				       (cantrip--projectile-compile script)
-				     (message "Whoops, script %s not found?" script-key))))
-			       ctc))))
+                               (lambda (script-key)
+                                 (interactive)
+                                 (let ((script (gethash script-key sample-content)))
+                                   (if script
+                                       (cantrip--projectile-compile script)
+                                     (message "Whoops, script %s not found?" script-key))))
+                               ctc))))
 
 ;; test cantrip--make-transient
 (when cantrip--testing
   (progn
     (let ((ht (make-hash-table))
-	  (ht2 (make-hash-table))
-	  (ctc '()))
+          (ht2 (make-hash-table))
+          (ctc '()))
       (puthash (cantrip--symbol "$segment") "taz" ht2)
       (puthash (cantrip--symbol "n") "new" ht2)
       (puthash (cantrip--symbol "h") "hue" ht2)
@@ -60,17 +60,17 @@
     (progn
       (aset actions 0 "Menu")
       (aset actions 1
-	    (list "f" "Foo helloski" (lambda () (interactive) (message "Hi world"))))
+            (list "f" "Foo helloski" (lambda () (interactive) (message "Hi world"))))
       (aset actions 2
-	    (list "d" "doit" (lambda () (interactive) (message "hi from dorp"))))
+            (list "d" "doit" (lambda () (interactive) (message "hi from dorp"))))
       (cantrip-create-transient (intern "test-cantrip-transient")
-				(list "this is the doc string" actions)))))
+                                (list "this is the doc string" actions)))))
 
 ;; test cantrip--select-candidate
 (when cantrip--testing
   (let ((ht (make-hash-table))
-	(segment "foo")
-	(ht2 (make-hash-table)))
+        (segment "foo")
+        (ht2 (make-hash-table)))
     (puthash (cantrip--symbol "f") 42 ht)
     (puthash (cantrip--symbol "F") 42 ht)
     (puthash (cantrip--symbol "o") 42 ht)
@@ -84,23 +84,24 @@
   (progn
     (let ((ht (make-hash-table)))
       (dolist (item '("foo:bar:baz"
-		      "foo:bar"
-		      "foo:qaz"
-		      "moo"))
-	(let ((segments (split-string item ":")))
-	  ;; (message "segments %s" segments)
-	  (cantrip--walk-segments segments ht)))
+                      "foo:bar"
+                      "foo:qaz"
+                      "moo"))
+        (let ((segments (split-string item ":")))
+          ;; (message "segments %s" segments)
+          (cantrip--walk-segments segments ht)))
       (message "%s" (json-encode ht)))
     nil))
+
 ;; test cantrip--walk-segments with cantrip--get-scripts-from-json-file
 (when cantrip--testing
   (progn
     (let* ((ht (make-hash-table))
-	   (sample-content (cantrip--get-scripts-from-json-file "./scripts.json"))
-	   (scripts (hash-table-keys sample-content)))
+           (sample-content (cantrip--get-scripts-from-json-file "./scripts.json"))
+           (scripts (hash-table-keys sample-content)))
       (dolist (item scripts)
-	(let ((segments (split-string item ":")))
-	  (cantrip--walk-segments segments ht)))
+        (let ((segments (split-string item ":")))
+          (cantrip--walk-segments segments ht)))
       (message "%s" (json-encode ht))
       ht)))
 
@@ -124,14 +125,16 @@
 (when cantrip--testing
   (progn
     (cantrip--split-vector ["THIS SHOULD GO MISSING"
-			    ("one" 1 2 3)
-			    ("two" 1 2 3)
-			    ("three" 1 2 3)
-			    ("four" 1 2 3)
-			    ("five" 1 2 3)
-			    ("six" 1 2 3)
-			    ("seven" 1 2 3)
-			    ("eight" 1 2 3)
-			    ("nine" 1 2 3)
-			    ("ten" 1 2 3)]
-			   3)))
+                            ("one" 1 2 3)
+                            ("two" 1 2 3)
+                            ("three" 1 2 3)
+                            ("four" 1 2 3)
+                            ("five" 1 2 3)
+                            ("six" 1 2 3)
+                            ("seven" 1 2 3)
+                            ("eight" 1 2 3)
+                            ("nine" 1 2 3)
+                            ("ten" 1 2 3)]
+                           3)))
+
+;;; cantrip-tests.el ends here
