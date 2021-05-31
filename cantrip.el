@@ -1,5 +1,11 @@
 ;;; cantrip.el -- quick and easy transients -*- lexical-binding: t; -*-
 
+;; Copyright (c) John Nelson
+
+;; Author: John Nelson <jnelson@johncoder.com>
+;; Keywords: lisp
+;; Version: 0.1.0
+
 ;;; Commentary:
 
 ;;; Code:
