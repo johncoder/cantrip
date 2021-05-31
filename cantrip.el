@@ -54,14 +54,16 @@
 (defun cantrip-run ()
   "Run cantrip in the current directory."
   (interactive)
-  (let* ((script-file-content (cantrip--get-scripts-from-json-file (cantrip--autolocate-scripts-file)))
-	 (ht (cantrip--process-scripts-hash-table script-file-content))
-	 (ctc '()))
-    (cantrip--make-transient "cantrip-auto"
-			     nil ht
-			     (cantrip--create-script-dispatcher script-file-content)
-			     ctc)
-    (funcall #'cantrip-auto-root-transient)))
+  (let ((scripts-file (cantrip--autolocate-scripts-file)))
+    (if (not scripts-file)
+	(message "cantrip | No scripts file found.")
+      (let ((script-file-content (cantrip--get-scripts-from-json-file scripts-file)))
+	(cantrip--make-transient "cantrip-auto"
+				 nil
+				 (cantrip--process-scripts-hash-table script-file-content)
+				 (cantrip--create-script-dispatcher script-file-content)
+				 nil)
+	(funcall #'cantrip-auto-root-transient)))))
 
 ;;;###autoload
 (progn
