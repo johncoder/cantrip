@@ -61,8 +61,7 @@
 
 (defun cantrip--split-vector (v quantity)
   "Split vector V into groups of size QUANTITY."
-  (let* ((zeroth (elt v 0))
-	 (current (make-vector (min quantity (- (length v) 1)) 0))
+  (let* ((current (make-vector (min quantity (- (length v) 1)) 0))
 	 (result (list current))
 	 (total 0)
 	 (counter 0))
