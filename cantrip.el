@@ -108,7 +108,9 @@
   (let* ((counter 0)
 	 (menu-label (string-join segments ":"))
 	 (transient-function-name (cantrip--transient-function-name namespace segments ht))
-	 (choices (remove-if #'cantrip--internal-symbol-p (hash-table-keys ht)))
+	 (choices (sort
+		   (remove-if #'cantrip--internal-symbol-p (hash-table-keys ht))
+		   #'string-collate-lessp))
 	 (actions (make-vector (+ 1 (length choices)) 0)))
     (aset actions 0 (if (string= "" menu-label) namespace menu-label))
     (dolist (choice choices)
