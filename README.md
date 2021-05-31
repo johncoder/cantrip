@@ -1,7 +1,7 @@
 <div align="center">
   <h1>Cantrip</h1>
   <p>An Emacs package for building transient prefixes from JSON files.</p>
-![cantrip example animated gif](./cantrip-example.gif)
+![cantrip example animated gif](https://raw.githubusercontent.com/johncoder/cantrip/master/cantrip-example.gif)
 </div>
 
 <hr />
