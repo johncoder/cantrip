@@ -49,5 +49,6 @@ You can use `cantrip-define-prefix` to build a prefix manually so that you can m
 
 ```lisp
 (global-set-key (kbd "C-x a g")
-                (cantrip-define-prefix "~/.cantrip.json" "my-cantrip"))
+                (cantrip-define-prefix "~/.cantrip.json"
+				                       "my-cantrip"))
 ```
