@@ -42,3 +42,12 @@ A scripts file looks something like this:
 ```
 
 Cantrip uses a `:` delimited convention for chaining transient prefixes. It will automatically select an alias for segments using the unique letters of the label, or overflow to another option when necessary. When you execute one of the scripts, it uses projectile to run the respective script as a compilation command within the project.
+
+## Using Cantrip Globally
+
+You can use `cantrip-define-prefix` to build a prefix manually so that you can make one globally available. Example:
+
+```lisp
+(global-set-key (kbd "C-x a g")
+                (cantrip-define-prefix "~/.cantrip.json" "my-cantrip"))
+```

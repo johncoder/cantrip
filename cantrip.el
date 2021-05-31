@@ -73,6 +73,25 @@
         (funcall #'cantrip-auto-root-transient)))))
 
 ;;;###autoload
+(defun cantrip-define-prefix (source-file namespace)
+  "Use cantrip to create a custom transient.
+It loads JSON from SOURCE-FILE, and creates a transient under
+NAMESPACE.  It returns the transient function."
+  (if (not (file-exists-p source-file))
+      (lambda ()
+        (interactive)
+        (message "cantrip | Unable to create %s; file missing: %s." namespace source-file))
+    (let ((script-file-content (cantrip--get-scripts-from-json-file source-file)))
+      (cantrip--make-transient namespace
+                               nil
+                               (cantrip--process-scripts-hash-table script-file-content)
+                               (cantrip--create-script-dispatcher script-file-content)
+                               nil)
+      (lambda ()
+        (interactive)
+        (funcall (intern (format "%s-root-transient" namespace)))))))
+
+;;;###autoload
 (progn
   (defun cantrip-maybe-define-global-key-bindings ()
     (when cantrip-define-global-key-bindings
