@@ -35,10 +35,9 @@
   (dolist (cantrip-default-file cantrip-default-files)
     (let ((scripts-file (concat (locate-dominating-file default-directory ".git")
 			       cantrip-default-file)))
-      (if (file-exists-p scripts-file)
-	  (progn
+      (when (file-exists-p scripts-file)
 	    (message "cantrip | found scripts file %s" scripts-file)
-	    (return scripts-file))))))
+	    (return scripts-file)))))
 
 ;;;###autoload
 (defun cantrip--create-script-dispatcher (scripts)
@@ -103,10 +102,10 @@
 (defun cantrip--symbol (s)
   "Get cantrip symbol for S."
   (let ((v (assoc s cantrip--symbol-keys)))
-    (if v (cdr v)
-      (progn
-	(push (cons s (make-symbol s)) cantrip--symbol-keys)
-	(cdr (assoc s cantrip--symbol-keys))))))
+    (if v
+	(cdr v)
+      (push (cons s (make-symbol s)) cantrip--symbol-keys)
+      (cdr (assoc s cantrip--symbol-keys)))))
 
 (defun cantrip--internal-symbol-p (value)
   "Test whether VALUE is an internal symbol."
@@ -144,11 +143,10 @@
       (aset current counter item)
       (incf counter 1)
       (incf total 1)
-      (if (eq (% counter quantity) 0)
-	  (progn
-	    (setq counter 0)
-	    (setq current (make-vector (min quantity (- (length v) total 1)) 0))
-	    (push current result))))
+      (when (eq (% counter quantity) 0)
+	(setq counter 0)
+	(setq current (make-vector (min quantity (- (length v) total 1)) 0))
+	(push current result)))
     (vconcat (reverse result))))
 
 ;; TODO(john): refactor this into something cleaner
@@ -191,15 +189,14 @@
 								       choice-value)))
 			       (lambda ()
 				 (interactive)
-				 (if (not (assoc next-transient-function-name cantrip-transient-cache))
-				     (progn
-				       (setq cantrip-transient-cache
-					     (append cantrip-transient-cache
-						     (cantrip--make-transient namespace
-									      (append segments (list segment-name))
-									      choice-value
-									      dispatcher
-									      cantrip-transient-cache)))))
+				 (when (not (assoc next-transient-function-name cantrip-transient-cache))
+				   (setq cantrip-transient-cache
+					 (append cantrip-transient-cache
+						 (cantrip--make-transient namespace
+									  (append segments (list segment-name))
+									  choice-value
+									  dispatcher
+									  cantrip-transient-cache))))
 				 (funcall (cdr (assoc next-transient-function-name cantrip-transient-cache))))))
 			    (t (progn (message "cantrip | unexpected type for handler") nil)))))
         (aset actions counter (list (format "%s" choice) label handler))))
