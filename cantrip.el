@@ -22,7 +22,6 @@
 ;;; Code:
 (require 'cl-lib)
 (require 'json)
-(require 's)
 (require 'projectile)
 (require 'transient)
 
