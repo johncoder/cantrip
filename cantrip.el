@@ -48,7 +48,7 @@
     (let ((script (gethash script-key scripts)))
       (if script
 	  (cantrip--projectile-compile script)
-	(message "Whoops, script %s not found?" script-key)))))
+	(message "cantrip | script %s not found" script-key)))))
 
 ;;;###autoload
 (defun cantrip-run ()
@@ -171,7 +171,7 @@
 			     choice-value))
 			  ((hash-table-p choice-value)
 			   (format "%s (more)" (gethash (cantrip--symbol "$segment") choice-value)))
-			  (t (progn (message "Unexpected type for label") nil))))
+			  (t (progn (message "cantrip | unexpected type for label") nil))))
 	     (handler (cond ((stringp choice-value)
 			      (if (string= "$." choice-value)
 				  (funcall dispatcher (string-join
@@ -199,7 +199,7 @@
 									      dispatcher
 									      cantrip-transient-cache)))))
 				 (funcall (cdr (assoc next-transient-function-name cantrip-transient-cache))))))
-			    (t (progn (message "Unexpected type for handler") nil)))))
+			    (t (progn (message "cantrip | unexpected type for handler") nil)))))
         (aset actions counter (list (format "%s" choice) label handler))))
     (if (> (length choices) 0)
 	(progn
