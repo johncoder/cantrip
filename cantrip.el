@@ -59,6 +59,50 @@
     (interactive)
     (message "hi %s" v)))
 
+(defun cantrip--split-vector (v quantity)
+  "Split vector V into groups of size QUANTITY."
+  (let* ((zeroth (elt v 0))
+	 (current (make-vector (min quantity (- (length v) 1)) 0))
+	 (result (list current))
+	 (total 0)
+	 (counter 0))
+    (dolist (item (nthcdr 1 (append v nil)))
+      (aset current counter item)
+      (incf counter 1)
+      (incf total 1)
+      (if (eq (% counter quantity) 0)
+	  (progn
+	    (setq counter 0)
+	    (setq current (make-vector (min quantity (- (length v) total 1)) 0))
+	    (push current result))))
+    (vconcat (reverse result))))
+
+;; test cantrip--split-vector
+(when cantrip--testing
+  (progn
+    (cantrip--split-vector ["zero" "one"] 5)))
+
+;; test cantrip--split-vector
+(when cantrip--testing
+  (progn
+    (cantrip--split-vector ["zero" "one" "two" "three" "four" "five" "six" "seven" "eight" "nine" "ten"] 3)))
+
+;; test cantrip--split-vector with lists
+(when cantrip--testing
+  (progn
+    (cantrip--split-vector ["THIS SHOULD GO MISSING"
+			    ("one" 1 2 3)
+			    ("two" 1 2 3)
+			    ("three" 1 2 3)
+			    ("four" 1 2 3)
+			    ("five" 1 2 3)
+			    ("six" 1 2 3)
+			    ("seven" 1 2 3)
+			    ("eight" 1 2 3)
+			    ("nine" 1 2 3)
+			    ("ten" 1 2 3)]
+			   3)))
+
 ;; TODO(john): refactor this into something cleaner
 (defun cantrip--make-transient (namespace segments ht dispatcher cantrip-transient-cache)
   "Make a transient in NAMESPACE for SEGMENTS using HT and DISPATCHER with CANTRIP-TRANSIENT-CACHE."
@@ -109,7 +153,14 @@
 	(progn
 	  (push (cons transient-function-name
 		      (cantrip-create-transient (intern transient-function-name)
-						(list "generated doc string" actions)))
+						(let* ((stuff (vconcat (vector menu-label)
+								       (cantrip--split-vector actions 10)))
+						       (thingies (list "generated doc string" stuff)))
+						  ;; NOTE(john): these are here for debugging :sweat-smile:
+						  ;; (pp (cantrip--split-vector actions 5))
+						  ;; (pp actions)
+						  ;; (pp thingies)
+						  thingies)))
 		cantrip-transient-cache)))
     cantrip-transient-cache))
 
