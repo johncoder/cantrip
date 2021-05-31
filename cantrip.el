@@ -138,16 +138,18 @@
 				     (cantrip--transient-function-name namespace
 								       (append segments (list segment-name))
 								       choice-value)))
-			       (if (not (assoc next-transient-function-name cantrip-transient-cache))
-				   (progn
-				     (setq cantrip-transient-cache
-					   (append cantrip-transient-cache
-						   (cantrip--make-transient namespace
-									    (append segments (list segment-name))
-									    choice-value
-									    dispatcher
-									    cantrip-transient-cache)))))
-			       (cdr (assoc next-transient-function-name cantrip-transient-cache))))
+			       (lambda ()
+				 (interactive)
+				 (if (not (assoc next-transient-function-name cantrip-transient-cache))
+				     (progn
+				       (setq cantrip-transient-cache
+					     (append cantrip-transient-cache
+						     (cantrip--make-transient namespace
+									      (append segments (list segment-name))
+									      choice-value
+									      dispatcher
+									      cantrip-transient-cache)))))
+				 (funcall (cdr (assoc next-transient-function-name cantrip-transient-cache))))))
 			    (t (progn (message "Unexpected type for handler") nil)))))
         (aset actions counter (list (format "%s" choice) label handler))))
     (if (> (length choices) 0)
