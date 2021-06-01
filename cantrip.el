@@ -230,7 +230,11 @@ NAMESPACE.  It returns the transient function."
       ;; This calls defalias on the symbol identified by transient-function-name, which is used below
       (cantrip-create-transient (intern transient-function-name)
                                 (list "generated doc string"
-                                      (vconcat (vector menu-label)
+                                      (vconcat (vector (format "Cantrip\n%s\n\nMenu: %s"
+                                                               (cantrip--autolocate-scripts-file)
+                                                               (if (string= "" menu-label)
+                                                                       "root"
+                                                                     menu-label)))
                                                (cantrip--split-vector actions 10))))
       (push (cons transient-function-name
                   (intern transient-function-name))
