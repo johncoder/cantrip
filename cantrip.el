@@ -50,12 +50,24 @@
 
 (defun cantrip--create-script-dispatcher (scripts)
   "Create a dispatcher for SCRIPTS."
-  (lambda (script-key)
-    (interactive)
-    (let ((script (gethash script-key scripts)))
-      (if script
-          (cantrip--projectile-compile script)
-        (message "cantrip | script %s not found" script-key)))))
+  (lambda (transient-args-key)
+    (lambda (script-key)
+      (interactive)
+      (let ((script (gethash script-key scripts)))
+        (if script
+            (cantrip--projectile-compile script)
+          (message "cantrip | script %s not found" script-key))))))
+
+(defun cantrip--create-script-dispatcher-args (scripts)
+  "Create a dispatcher for SCRIPTS that extracts optional args from TRANSIENT-ARGS-KEY."
+  (lambda (transient-args-key)
+    (message "cantrip | dispatcher for transient-args-key: %s" transient-args-key)
+    (lambda (script-key)
+      (interactive) ; TODO(john): see if this is still necessary
+      (let ((script (gethash script-key scripts)))
+        (if script
+            (cantrip--projectile-compile-args script transient-args-key)
+          (message "cantrip | script %s not found" script-key))))))
 
 ;;;###autoload
 (defun cantrip-run ()
@@ -68,7 +80,7 @@
         (cantrip--make-transient "cantrip-auto"
                                  nil
                                  (cantrip--process-scripts-hash-table script-file-content)
-                                 (cantrip--create-script-dispatcher script-file-content)
+                                 (cantrip--create-script-dispatcher-args script-file-content)
                                  nil)
         (funcall #'cantrip-auto-root-transient)))))
 
@@ -148,6 +160,19 @@ NAMESPACE.  It returns the transient function."
                                         "transient")))
                "-"))
 
+(defun cantrip--projectile-compile-args (v transient-name-key)
+  "Create a function to compile V using projectile with args from TRANSIENT-NAME-KEY."
+  (lambda (&optional args)
+    (interactive (list (transient-args (intern transient-name-key))))
+    (let* ((args--long (seq-find (lambda (i) (string= "--long" i)) args))
+           (args--append (seq-find (lambda (i) (string-prefix-p "--append=" i t)) args))
+           (compilation-command-value
+            (if (string-prefix-p "--append=" args--append t)
+                (concat v " " (replace-regexp-in-string "--append=" "" args--append))
+              v)))
+      ;; TODO(john): when args--long, do the compilation in a dedicated buffer
+      (projectile-run-compilation compilation-command-value))))
+
 (defun cantrip--projectile-compile (v)
   "Compile V using projectile."
   (lambda ()
@@ -177,15 +202,21 @@ NAMESPACE.  It returns the transient function."
     (vconcat (reverse result))))
 
 ;; TODO(john): refactor this into something cleaner
-(defun cantrip--make-transient (namespace segments ht dispatcher cantrip-transient-cache)
-  "Make a transient in NAMESPACE for SEGMENTS using HT and DISPATCHER with CANTRIP-TRANSIENT-CACHE."
+(defun cantrip--make-transient (namespace segments ht make-dispatcher cantrip-transient-cache)
+  "Make a transient for the current segments.
+The transient is created in NAMESPACE using the : delimited
+SEGMENTS.  The hash-table HT contains the options.
+MAKE-DISPATCHER takes the transient name, which is used to gather
+the list of arguments to the prefix.  CANTRIP-TRANSIENT-CACHE is
+an alist of previously created transients."
   (let* ((counter 0)
          (menu-label (string-join segments ":"))
          (transient-function-name (cantrip--transient-function-name namespace segments ht))
          (choices (sort
                    (remove-if #'cantrip--internal-symbol-p (hash-table-keys ht))
                    #'string-collate-lessp))
-         (actions (make-vector (+ 1 (length choices)) 0)))
+         (actions (make-vector (+ 1 (length choices)) 0))
+         (dispatcher (funcall make-dispatcher transient-function-name)))
     ;; (message "cantrip | creating transient: %s" transient-function-name)
     (aset actions 0 (if (string= "" menu-label) namespace menu-label))
     (dolist (choice choices)
@@ -221,7 +252,7 @@ NAMESPACE.  It returns the transient function."
                                                  (cantrip--make-transient namespace
                                                                           (append segments (list segment-name))
                                                                           choice-value
-                                                                          dispatcher
+                                                                          make-dispatcher
                                                                           cantrip-transient-cache))))
                                  (funcall (cdr (assoc next-transient-function-name cantrip-transient-cache))))))
                             (t (progn (message "cantrip | unexpected type for handler") nil)))))
@@ -230,11 +261,14 @@ NAMESPACE.  It returns the transient function."
       ;; This calls defalias on the symbol identified by transient-function-name, which is used below
       (cantrip-create-transient (intern transient-function-name)
                                 (list "generated doc string"
-                                      (vconcat (vector (format "Cantrip\n%s\n\nMenu: %s"
-                                                               (cantrip--autolocate-scripts-file)
-                                                               (if (string= "" menu-label)
-                                                                       "root"
-                                                                     menu-label)))
+                                      (vconcat (vector (format "Cantrip\n%s\n\nArguments:"
+                                                               (cantrip--autolocate-scripts-file)))
+                                               [("-a" "Append" "--append=")
+                                                ;; ("-l" "Long running process" "--long") ; TODO(john): this!
+                                                ])
+                                      (vconcat (vector (format "Menu: %s" (if (string= "" menu-label)
+                                                                              "root"
+                                                                            menu-label)))
                                                (cantrip--split-vector actions 10))))
       (push (cons transient-function-name
                   (intern transient-function-name))
