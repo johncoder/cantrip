@@ -212,9 +212,7 @@ an alist of previously created transients."
   (let* ((counter 0)
          (menu-label (string-join segments ":"))
          (transient-function-name (cantrip--transient-function-name namespace segments ht))
-         (choices (sort
-                   (remove-if #'cantrip--internal-symbol-p (hash-table-keys ht))
-                   #'string-collate-lessp))
+         (choices (remove-if #'cantrip--internal-symbol-p (hash-table-keys ht)))
          (actions (make-vector (+ 1 (length choices)) 0))
          (dispatcher (funcall make-dispatcher transient-function-name)))
     ;; (message "cantrip | creating transient: %s" transient-function-name)
@@ -342,7 +340,7 @@ an alist of previously created transients."
 (defun cantrip--process-scripts-hash-table (scripts-hash-table)
   "Process SCRIPTS-HASH-TABLE into a hash-table of aliased commands."
   (let ((ht (make-hash-table))
-        (scripts (hash-table-keys scripts-hash-table)))
+        (scripts (sort (hash-table-keys scripts-hash-table) #'string-lessp)))
     (dolist (item scripts)
       (let ((segments (split-string item ":")))
         (cantrip--walk-segments segments ht)))
