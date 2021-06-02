@@ -148,8 +148,7 @@ NAMESPACE.  It returns the transient function."
 
 (defun cantrip--internal-symbol-p (value)
   "Test whether VALUE is an internal symbol."
-  (or (eq (cantrip--symbol "$.") value)
-      (eq (cantrip--symbol "$segment") value)))
+  (eq (cantrip--symbol "$segment") value))
 
 (defun cantrip--transient-function-name (namespace segments ht)
   "Get transient function name from NAMESPACE, SEGMENTS and HT."
@@ -221,14 +220,14 @@ an alist of previously created transients."
       (incf counter 1)
       (let* ((choice-value (gethash choice ht))
              (label (cond ((stringp choice-value)
-                           (if (string= "$." choice-value)
+                           (if (string= "." choice-value)
                                menu-label
                              choice-value))
                           ((hash-table-p choice-value)
                            (format "%s (more)" (gethash (cantrip--symbol "$segment") choice-value)))
                           (t (progn (message "cantrip | unexpected type for label") nil))))
              (handler (cond ((stringp choice-value)
-                             (if (string= "$." choice-value)
+                             (if (string= "." choice-value)
                                  (funcall dispatcher (string-join
                                                       (list menu-label)
                                                       ":"))
@@ -291,42 +290,53 @@ an alist of previously created transients."
     (dolist (candidate-string candidate-strings)
       (unless (string= "" candidate-string)
         (let* ((candidate (cantrip--symbol candidate-string))
-               (candidate-value (gethash candidate ht)))
-          (if (or (eq nil candidate-value)
-                  (and (hash-table-p candidate-value)
-                       (stringp (gethash (cantrip--symbol "$segment") candidate-value))
-                       (string= segment (gethash (cantrip--symbol "$segment") candidate-value)))
-                  (and (hash-table-p candidate-value)
-                       (stringp (gethash (cantrip--symbol "$.") candidate-value))
-                       (string= segment (gethash (cantrip--symbol "$.") candidate-value))))
-              (return candidate-string)))))))
+               (ht-candidate-value (gethash candidate ht)))
+          (when (or (eq nil ht-candidate-value)            ; unused
+                    (and (stringp ht-candidate-value)      ; segment is exact match
+                         (string= segment ht-candidate-value))
+                    (and (hash-table-p ht-candidate-value) ; hash table is exact match
+                         (stringp (gethash (cantrip--symbol "$segment")
+                                           ht-candidate-value))
+                         (string= segment
+                                  (gethash (cantrip--symbol "$segment")
+                                           ht-candidate-value))))
+            (return candidate-string)))))))
 
 (defun cantrip--walk-segments (segments ht)
   "Recur on SEGMENTS nesting each segment under hash-table HT."
   (let* ((segment (car segments))
          (segment-key-string (cantrip--select-candidate segment ht))
          (segment-key (cantrip--symbol segment-key-string))
-         (segment-value (gethash segment-key ht)))
+         (ht-segment-value (gethash segment-key ht)))
     (cond
      ;; we're done walking segments
      ((eq nil segments) ht)
      ;; there are more segments; this segment is a hash
      ((cdr segments)
       (cond ((string= "" segment-key-string) nil)
-            ((hash-table-p segment-value)
-             (cantrip--walk-segments (cdr segments) segment-value))
-            (t (let ((next-ht (make-hash-table)))
-                 (if (not (eq nil segment-value))
-                     (puthash (cantrip--symbol "$.") segment-value next-ht))
-                 (puthash (cantrip--symbol "$segment") segment next-ht)
-                 (puthash segment-key next-ht ht)
-                 (cantrip--walk-segments (cdr segments) next-ht)))))
+            ((hash-table-p ht-segment-value)
+             (cantrip--walk-segments (cdr segments) ht-segment-value))
+            ((or (eq nil ht-segment-value)
+                 (stringp ht-segment-value))
+             (let ((next-ht (make-hash-table)))
+               ;; the next segment knows its label
+               (puthash (cantrip--symbol "$segment") segment next-ht)
+               ;; this segment points to the next
+               (puthash segment-key next-ht ht)
+               ;; the value for this segment key is a string, so tuck it under the next
+               (if (stringp ht-segment-value)
+                   (puthash (cantrip--symbol ".") "" next-ht))
+               (cantrip--walk-segments (cdr segments) next-ht)))
+            (t (message "cantrip | unexpected scenario walking with more segments"))))
 
-     ;; (car segments) is a leaf; find a candidate & store it
-     (t (cond ((hash-table-p segment-value)
-               (puthash (cantrip--symbol "$.") segment segment-value))
-              ((not segment-value)
-               (puthash segment-key segment ht)))))
+     ;; segment is a leaf; find a candidate & store it
+     ((not (cdr segments))
+      (cond ((hash-table-p ht-segment-value)
+             (puthash (cantrip--symbol ".") "" ht-segment-value))
+            ((not ht-segment-value)
+             (puthash segment-key segment ht))
+            (t (message "cantrip | unexpected leaf segment value"))))
+     (t (message "cantrip | unexpected scenario while walking segments")))
     ht))
 
 (defun cantrip--get-scripts-from-json-file (filepath)
