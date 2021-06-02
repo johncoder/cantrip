@@ -168,9 +168,11 @@ NAMESPACE.  It returns the transient function."
            (compilation-command-value
             (if (string-prefix-p "--append=" args--append t)
                 (concat v " " (replace-regexp-in-string "--append=" "" args--append))
-              v)))
+              v))
+           (localized-cmd (concat "cd " (projectile-compilation-dir)
+                                  " && " compilation-command-value)))
       ;; TODO(john): when args--long, do the compilation in a dedicated buffer
-      (projectile-run-compilation compilation-command-value))))
+      (projectile-run-compilation localized-cmd))))
 
 (defun cantrip--projectile-compile (v)
   "Compile V using projectile."
