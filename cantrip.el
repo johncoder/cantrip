@@ -220,17 +220,15 @@ an alist of previously created transients."
       (incf counter 1)
       (let* ((choice-value (gethash choice ht))
              (label (cond ((stringp choice-value)
-                           (if (string= "." choice-value)
-                               menu-label
+                           (if (string= "." choice)
+                               (format "(%s)" menu-label)
                              choice-value))
                           ((hash-table-p choice-value)
                            (format "%s (more)" (gethash (cantrip--symbol "$segment") choice-value)))
                           (t (progn (message "cantrip | unexpected type for label") nil))))
              (handler (cond ((stringp choice-value)
-                             (if (string= "." choice-value)
-                                 (funcall dispatcher (string-join
-                                                      (list menu-label)
-                                                      ":"))
+                             (if (string= "." choice)
+                                 (funcall dispatcher menu-label)
                                (funcall dispatcher (string-join
                                                     (remove-if #'cantrip--empty-p
                                                                (list menu-label label))
