@@ -260,9 +260,15 @@ an alist of previously created transients."
                                 (list "generated doc string"
                                       (vconcat (vector (format "Cantrip\n%s\n\nArguments:"
                                                                (cantrip--autolocate-scripts-file)))
-                                               [("-a" "Append" "--append=")
+                                               [("-a" "Append Command" "--append=")
                                                 ;; ("-l" "Long running process" "--long") ; TODO(john): this!
-                                                ])
+                                                ]
+                                               (vector (list "-d" "Append Directory"
+                                                             (concat "--append="
+                                                                     (car (cantrip--get-buffer-dir-and-filename))))
+                                                       (list "-f" "Append File"
+                                                             (concat "--append="
+                                                                     (car (cdr (cantrip--get-buffer-dir-and-filename)))))))
                                       (vconcat (vector (format "Menu: %s" (if (string= "" menu-label)
                                                                               "root"
                                                                             menu-label)))
@@ -271,6 +277,13 @@ an alist of previously created transients."
                   (intern transient-function-name))
             cantrip-transient-cache))
     cantrip-transient-cache))
+
+(defun cantrip--get-buffer-dir-and-filename ()
+  "Get the dir and filename of the current buffer."
+  (let* ((buffer-filename (buffer-file-name (window-buffer (minibuffer-selected-window))))
+	 (filedir (file-name-directory buffer-filename))
+	 (filenamedotext (car (cdr (split-string buffer-filename filedir)))))
+    (list filedir filenamedotext)))
 
 (defun cantrip--get-key-choices (input)
   "Get a string of possible letter choices from INPUT."
