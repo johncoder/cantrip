@@ -280,10 +280,12 @@ an alist of previously created transients."
 
 (defun cantrip--get-buffer-dir-and-filename ()
   "Get the dir and filename of the current buffer."
-  (let* ((buffer-filename (buffer-file-name (window-buffer (minibuffer-selected-window))))
-	 (filedir (file-name-directory buffer-filename))
-	 (filenamedotext (car (cdr (split-string buffer-filename filedir)))))
-    (list filedir filenamedotext)))
+  (if (stringp (window-buffer (minibuffer-selected-window)))
+      (let* ((buffer-filename (buffer-file-name (window-buffer (minibuffer-selected-window))))
+	     (filedir (file-name-directory buffer-filename))
+	     (filenamedotext (car (cdr (split-string buffer-filename filedir)))))
+        (list filedir filenamedotext))
+    (list "" "")))
 
 (defun cantrip--get-key-choices (input)
   "Get a string of possible letter choices from INPUT."
