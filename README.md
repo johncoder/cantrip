@@ -63,3 +63,15 @@ You can change how cantrip dispatches commands! For example, you can change it t
           (switch-to-buffer-other-window "*ansi-term*")
           (comint-send-string "*ansi-term*" (concat command "\n"))))
 ```
+
+## Altering Commands
+
+You can alter a command before it is dispatched. For example, if you'd like to run the command using `npm` or `yarn`:
+
+```lisp
+(setq cantrip-transform-command
+      #'(lambda (key command)
+          (if (locate-dominating-file default-directory "yarn.lock")
+              (format "yarn run %s" key)
+            command)))
+```

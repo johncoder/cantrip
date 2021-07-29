@@ -34,6 +34,10 @@
   "Whether to bind some Cantrip commands in the global key map.")
 
 ;;;###autoload
+(defvar cantrip-transform-command #'cantrip--transform-command
+  "A function for intercepting the command and altering it prior to dispatch.")
+
+;;;###autoload
 (defvar cantrip-dispatch-command #'cantrip--projectile-compile
   "A function that dispatches the command.")
 
@@ -42,6 +46,10 @@
 (defun cantrip--empty-p (s)
   "Is S an empty string."
   (string= "" s))
+
+(defun cantrip--transform-command (key command)
+  "Use KEY and COMMAND to return a command for dispatch."
+  command)
 
 (defun cantrip--autolocate-scripts-file ()
   "Locate the parent directory containing one of the default files."
@@ -70,7 +78,7 @@
       (interactive) ; TODO(john): see if this is still necessary
       (let ((script (gethash script-key scripts)))
         (if script
-            (cantrip--projectile-compile-args script transient-args-key)
+            (cantrip--projectile-compile-args script-key script transient-args-key)
           (message "cantrip | script %s not found" script-key))))))
 
 ;;;###autoload
@@ -163,8 +171,8 @@ NAMESPACE.  It returns the transient function."
                                         "transient")))
                "-"))
 
-(defun cantrip--projectile-compile-args (v transient-name-key)
-  "Create a function to compile V using projectile with args from TRANSIENT-NAME-KEY."
+(defun cantrip--projectile-compile-args (script-key v transient-name-key)
+  "Create a function to compile SCRIPT-KEY V using projectile with args from TRANSIENT-NAME-KEY."
   (lambda (&optional args)
     (interactive (list (transient-args (intern transient-name-key))))
     (let* ((args--long (seq-find (lambda (i) (string= "--long" i)) args))
@@ -174,7 +182,7 @@ NAMESPACE.  It returns the transient function."
                 (concat v " " (replace-regexp-in-string "--append=" "" args--append))
               v))
            (localized-cmd (concat "pushd " (projectile-compilation-dir)
-                                  " && " compilation-command-value
+                                  " && " (funcall cantrip-transform-command script-key compilation-command-value)
                                   " && popd")))
       ;; TODO(john): when args--long, do the compilation in a dedicated buffer
       (funcall cantrip-dispatch-command localized-cmd))))
