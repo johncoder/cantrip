@@ -33,6 +33,10 @@
 (defcustom cantrip-define-global-key-bindings t
   "Whether to bind some Cantrip commands in the global key map.")
 
+;;;###autoload
+(defvar cantrip-dispatch-command #'cantrip--projectile-compile
+  "A function that dispatches the command.")
+
 (defvar-local cantrip--symbol-keys '())
 
 (defun cantrip--empty-p (s)
@@ -169,15 +173,18 @@ NAMESPACE.  It returns the transient function."
             (if (string-prefix-p "--append=" args--append t)
                 (concat v " " (replace-regexp-in-string "--append=" "" args--append))
               v))
-           (localized-cmd (concat "cd " (projectile-compilation-dir)
-                                  " && " compilation-command-value)))
+           (localized-cmd (concat "pushd " (projectile-compilation-dir)
+                                  " && " compilation-command-value
+                                  " && popd")))
       ;; TODO(john): when args--long, do the compilation in a dedicated buffer
-      (projectile-run-compilation localized-cmd))))
+      (funcall cantrip-dispatch-command localized-cmd))))
 
+;;;###autoload
 (defun cantrip--projectile-compile (v)
   "Compile V using projectile."
   (lambda ()
     (interactive)
+    (message "cantrip | running %s" v)
     (projectile-run-compilation v)))
 
 (defun cantrip--projectile-compile-echo (v)
