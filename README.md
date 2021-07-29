@@ -52,3 +52,14 @@ You can use `cantrip-define-prefix` to build a prefix manually so that you can m
                 (cantrip-define-prefix "~/.cantrip.json"
                                        "my-cantrip"))
 ```
+
+## Use `*ansi-term*` To Run Commands
+
+You can change how cantrip dispatches commands! For example, you can change it to send commands directly to your open `*ansi-term*` buffer.
+
+```lisp
+(setq cantrip-dispatch-command
+      #'(lambda (command)
+          (switch-to-buffer-other-window "*ansi-term*")
+          (comint-send-string "*ansi-term*" (concat command "\n"))))
+```
