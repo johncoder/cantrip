@@ -293,16 +293,24 @@ an alist of previously created transients."
           (cons filedir filenamedotext))
       (cons "" ""))))
 
+(defun cantrip--mix-case (input)
+  "Return INPUT as an interleaved list of downcase and upcase characters."
+  (string-join
+   (mapcar (lambda (s)
+             (concat (downcase s) (upcase s)))
+           (split-string input ""))
+   ""))
+
 (defun cantrip--get-key-choices (input)
   "Get a string of possible letter choices from INPUT."
   (string-join
-   (seq-uniq
-    (mapcar (lambda (i)
-              (string-join (list i (upcase i)) ""))
-            (split-string
-             (replace-regexp-in-string
-              "[-]+" ""
-              (concat (downcase input) "abcdefghijklmnopqrstuvwxyz") ""))))
+   (seq-uniq (split-string
+              (cantrip--mix-case
+               (string-join
+                (list (replace-regexp-in-string "[-]+" "" input)
+                      "abcdefghijklmnopqrstuvwxyz")
+                ""))
+              ""))
    ""))
 
 (defun cantrip--select-candidate (segment ht)
