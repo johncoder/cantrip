@@ -302,7 +302,7 @@ an alist of previously created transients."
             (split-string
              (replace-regexp-in-string
               "[-]+" ""
-              (concat (downcase input) "acdefghijklmnopqrstuvwxyz") ""))))
+              (concat (downcase input) "abcdefghijklmnopqrstuvwxyz") ""))))
    ""))
 
 (defun cantrip--select-candidate (segment ht)
