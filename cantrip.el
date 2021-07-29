@@ -47,9 +47,9 @@
   "Is S an empty string."
   (string= "" s))
 
-(defun cantrip--transform-command (key command)
-  "Use KEY and COMMAND to return a command for dispatch."
-  command)
+(defun cantrip--transform-command (key command args)
+  "Use KEY, COMMAND, and ARGS to return a command for dispatch."
+  (concat command " " args))
 
 (defun cantrip--autolocate-scripts-file ()
   "Locate the parent directory containing one of the default files."
@@ -177,12 +177,12 @@ NAMESPACE.  It returns the transient function."
     (interactive (list (transient-args (intern transient-name-key))))
     (let* ((args--long (seq-find (lambda (i) (string= "--long" i)) args))
            (args--append (seq-find (lambda (i) (string-prefix-p "--append=" i t)) args))
-           (compilation-command-value
+           (command-args
             (if (string-prefix-p "--append=" args--append t)
-                (concat v " " (replace-regexp-in-string "--append=" "" args--append))
-              v))
+                (replace-regexp-in-string "--append=" "" args--append)
+              ""))
            (localized-cmd (concat "pushd " (projectile-compilation-dir)
-                                  " && " (funcall cantrip-transform-command script-key compilation-command-value)
+                                  " && " (funcall cantrip-transform-command script-key v command-args)
                                   " && popd")))
       ;; TODO(john): when args--long, do the compilation in a dedicated buffer
       (funcall cantrip-dispatch-command localized-cmd))))
