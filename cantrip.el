@@ -6,7 +6,7 @@
 ;; Homepage: https://github.com/johncoder/cantrip
 ;; Keywords: lisp
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "25.1") (transient "0.3.0") (projectile "2.0.0"))
+;; Package-Requires: ((emacs "25.1") (transient "0.3.0"))
 ;; File: cantrip.el
 
 ;; This file is NOT part of GNU Emacs.
@@ -22,7 +22,6 @@
 ;;; Code:
 (require 'cl-lib)
 (require 'json)
-(require 'projectile)
 (require 'transient)
 
 ;;;###autoload
@@ -67,7 +66,7 @@
       (interactive)
       (let ((script (gethash script-key scripts)))
         (if script
-            (cantrip--projectile-compile script)
+            (cantrip--compile script)
           (message "cantrip | script %s not found" script-key))))))
 
 (defun cantrip--create-script-dispatcher-args (scripts)
@@ -188,14 +187,6 @@ NAMESPACE.  It returns the transient function."
       (funcall (funcall cantrip-dispatch-command localized-cmd)))))
 
 ;;;###autoload
-(defun cantrip--projectile-compile (v)
-  "Compile V using projectile."
-  (lambda ()
-    (interactive)
-    (message "cantrip | running %s" v)
-    (projectile-run-compilation v)))
-
-;;;###autoload
 (defun cantrip--compile (command)
   "Compile COMMAND using COMPILE."
   (lambda ()
@@ -204,11 +195,11 @@ NAMESPACE.  It returns the transient function."
     (let ((default-directory (locate-dominating-file default-directory ".git")))
       (compile command))))
 
-(defun cantrip--projectile-compile-echo (v)
-  "Compile V using projectile."
+(defun cantrip--compile-echo (command)
+  "Compile COMMAND, except it just echos."
   (lambda ()
     (interactive)
-    (projectile-run-compilation (format "echo %s" v))))
+    (cantrip--compile (format "echo %s" command))))
 
 (defun cantrip--split-vector (v quantity)
   "Split vector V into groups of size QUANTITY."
