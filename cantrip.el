@@ -38,7 +38,7 @@
   "A function for intercepting the command and altering it prior to dispatch.")
 
 ;;;###autoload
-(defvar cantrip-dispatch-command #'cantrip--projectile-compile
+(defvar cantrip-dispatch-command #'cantrip--compile
   "A function that dispatches the command.")
 
 (defvar-local cantrip--symbol-keys '())
@@ -78,8 +78,10 @@
       (interactive) ; TODO(john): see if this is still necessary
       (let ((script (gethash script-key scripts)))
         (if script
-            (cantrip--projectile-compile-args script-key script transient-args-key)
-          (message "cantrip | script %s not found" script-key))))))
+            (cantrip--compile-args script-key script transient-args-key)
+          (lambda ()
+            (interactive)
+            (message "cantrip | script %s not found" script-key)))))))
 
 ;;;###autoload
 (defun cantrip-run ()
@@ -109,7 +111,7 @@ NAMESPACE.  It returns the transient function."
       (cantrip--make-transient namespace
                                nil
                                (cantrip--process-scripts-hash-table script-file-content)
-                               (cantrip--create-script-dispatcher script-file-content)
+                               (cantrip--create-script-dispatcher-args script-file-content)
                                nil)
       (lambda ()
         (interactive)
@@ -171,8 +173,8 @@ NAMESPACE.  It returns the transient function."
                                         "transient")))
                "-"))
 
-(defun cantrip--projectile-compile-args (script-key v transient-name-key)
-  "Create a function to compile SCRIPT-KEY V using projectile with args from TRANSIENT-NAME-KEY."
+(defun cantrip--compile-args (script-key v transient-name-key)
+  "Create a function to compile SCRIPT-KEY V with args from TRANSIENT-NAME-KEY."
   (lambda (&optional args)
     (interactive (list (transient-args (intern transient-name-key))))
     (let* ((args--long (seq-find (lambda (i) (string= "--long" i)) args))
@@ -181,11 +183,9 @@ NAMESPACE.  It returns the transient function."
             (if (string-prefix-p "--append=" args--append t)
                 (replace-regexp-in-string "--append=" "" args--append)
               ""))
-           (localized-cmd (concat "pushd " (projectile-compilation-dir)
-                                  " && " (funcall cantrip-transform-command script-key v command-args)
-                                  " && popd")))
+           (localized-cmd (funcall cantrip-transform-command script-key v command-args)))
       ;; TODO(john): when args--long, do the compilation in a dedicated buffer
-      (funcall cantrip-dispatch-command localized-cmd))))
+      (funcall (funcall cantrip-dispatch-command localized-cmd)))))
 
 ;;;###autoload
 (defun cantrip--projectile-compile (v)
@@ -194,6 +194,15 @@ NAMESPACE.  It returns the transient function."
     (interactive)
     (message "cantrip | running %s" v)
     (projectile-run-compilation v)))
+
+;;;###autoload
+(defun cantrip--compile (command)
+  "Compile COMMAND using COMPILE."
+  (lambda ()
+    (interactive)
+    (message "cantrip | compile %s" command)
+    (let ((default-directory (locate-dominating-file default-directory ".git")))
+      (compile command))))
 
 (defun cantrip--projectile-compile-echo (v)
   "Compile V using projectile."
@@ -279,10 +288,18 @@ an alist of previously created transients."
                                                (vector (list "-a" "Append Command" "--append=")
                                                        (list "-d" "Append Directory"
                                                              (concat "--append="
-                                                                     (car (cantrip--get-buffer-dir-and-filename))))
+                                                                     (file-relative-name
+                                                                      (car (cantrip--get-buffer-dir-and-filename))
+                                                                      (locate-dominating-file default-directory ".git"))))
                                                        (list "-f" "Append File"
                                                              (concat "--append="
-                                                                     (cdr (cantrip--get-buffer-dir-and-filename))))))
+                                                                     (cdr (cantrip--get-buffer-dir-and-filename))))
+                                                       (list "-F" "Append Path to File"
+                                                             (concat "--append="
+                                                                     (file-relative-name
+                                                                      (concat (car (cantrip--get-buffer-dir-and-filename))
+                                                                              (cdr (cantrip--get-buffer-dir-and-filename)))
+                                                                      (locate-dominating-file default-directory ".git"))))))
                                       (vconcat (vector (format "Menu: %s" (if (string= "" menu-label)
                                                                               "root"
                                                                             menu-label)))
