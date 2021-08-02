@@ -41,7 +41,7 @@ A scripts file looks something like this:
 }
 ```
 
-Cantrip uses a `:` delimited convention for chaining transient prefixes. It will automatically select an alias for segments using the unique letters of the label, or overflow to another option when necessary. When you execute one of the scripts, it uses =compile= to run the respective script as a compilation command within the git repository.
+Cantrip uses a `:` delimited convention for chaining transient prefixes. It will automatically select an alias for segments using the unique letters of the label, or overflow to another option when necessary. When you execute one of the scripts, it uses `compile` to run the respective script as a compilation command within the git repository.
 
 ## Using Cantrip Globally
 
