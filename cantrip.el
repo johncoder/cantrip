@@ -238,7 +238,7 @@ an alist of previously created transients."
       (let* ((choice-value (gethash choice ht))
              (label (cond ((stringp choice-value)
                            (if (string= "$segment-identity" choice-value)
-                               (format "%s" menu-label)
+                               (format "%s (%s)" (car (last segments)) menu-label)
                              choice-value))
                           ((hash-table-p choice-value)
                            (format "%s (more)" (gethash (cantrip--symbol "$segment-label") choice-value)))
