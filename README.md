@@ -43,6 +43,8 @@ A scripts file looks something like this:
 
 Cantrip uses a `:` delimited convention for chaining transient prefixes. It will automatically select an alias for segments using the unique letters of the label, or overflow to another option when necessary. When you execute one of the scripts, it uses `compile` to run the respective script as a compilation command within the git repository.
 
+Cantrip now keeps a list of the most recent commands you've run in the current git repository. `C-u C-x a r` or `M-x cantrip-rerun` will prompt you to choose from the recent commands.
+
 ## Using Cantrip Globally
 
 You can use `cantrip-define-prefix` to build a prefix manually so that you can make one globally available. Example:
