@@ -40,7 +40,13 @@
 (defvar cantrip-dispatch-command #'cantrip--compile
   "A function that dispatches the command.")
 
+;;;###autoload
+(defvar cantrip-command-log-count 12
+  "The number of recent commands cantrip will remember per repository.")
+
 (defvar-local cantrip--symbol-keys '())
+
+(defvar-local cantrip--repository-command-log (make-hash-table :test #'equal))
 
 (defun cantrip--empty-p (s)
   "Is S an empty string."
@@ -69,33 +75,64 @@
             (cantrip--compile script)
           (message "cantrip | script %s not found" script-key))))))
 
-(defun cantrip--create-script-dispatcher-args (scripts)
-  "Create a dispatcher for SCRIPTS that extracts optional args from TRANSIENT-ARGS-KEY."
+(defun cantrip--rotate-command (script-file-location command-string)
+  "Update the CANTRIP--REPOSITORY-COMMAND-LOG entry for SCRIPT-FILE-LOCATION with COMMAND-STRING."
+  (let* ((command-log (gethash scripts-file-location cantrip--repository-command-log '()))
+         (updated-log (seq-take (seq-uniq (append (list command-string) command-log) #'equal)
+                                cantrip-command-log-count)))
+    (puthash scripts-file-location
+             updated-log
+             cantrip--repository-command-log)))
+
+(defun cantrip--create-script-dispatcher-args (scripts-file-location scripts)
+  "Create a dispatcher for SCRIPTS.
+Extracts optional args from TRANSIENT-ARGS-KEY.
+SCRIPTS-FILE-LOCATION is the source for SCRIPTS.  The result
+returned from this function is ultimately what gets passed to
+transient."
   (lambda (transient-args-key)
     (message "cantrip | dispatcher for transient-args-key: %s" transient-args-key)
     (lambda (script-key)
       (interactive) ; TODO(john): see if this is still necessary
       (let ((script (gethash script-key scripts)))
-        (if script
-            (cantrip--compile-args script-key script transient-args-key)
-          (lambda ()
-            (interactive)
-            (message "cantrip | script %s not found" script-key)))))))
+        (cond ((not (eq nil script))
+               (lambda (&optional args)
+                 (interactive (list (transient-args (intern transient-args-key))))
+                 (let* ((command-log (gethash scripts-file-location cantrip--repository-command-log '()))
+                        (command-to-run (cantrip--prepare-compile-command args script-key script transient-args-key))
+                        (updated-log (seq-take (seq-uniq (append (list command-to-run) command-log) #'equal)
+                                               cantrip-command-log-count)))
+                   (puthash scripts-file-location
+                            updated-log
+                            cantrip--repository-command-log)
+                   (funcall (funcall cantrip-dispatch-command command-to-run)))))
+              (t (lambda ()
+                   (interactive)
+                   (message "cantrip | script %s not found" script-key))))))))
 
 ;;;###autoload
-(defun cantrip-run ()
-  "Run cantrip in the current directory."
-  (interactive)
-  (let ((scripts-file (cantrip--autolocate-scripts-file)))
-    (if (not scripts-file)
-        (message "cantrip | No scripts file found.")
-      (let ((script-file-content (cantrip--get-scripts-from-json-file scripts-file)))
-        (cantrip--make-transient "cantrip-auto"
-                                 nil
-                                 (cantrip--process-scripts-hash-table script-file-content)
-                                 (cantrip--create-script-dispatcher-args script-file-content)
-                                 nil)
-        (funcall #'cantrip-auto-root-transient)))))
+(defun cantrip-run (args)
+  "Run cantrip in the current directory.
+When ARGS is provided, prompt selection from the command log."
+  (interactive "P")
+  (let ((scripts-file-location (cantrip--autolocate-scripts-file)))
+    (cond ((not scripts-file-location)
+           (message "cantrip | No scripts file found."))
+          ((not (eq nil args))
+           (let* ((command-log (gethash scripts-file-location cantrip--repository-command-log))
+                  (foo (progn (pp cantrip--repository-command-log) 42))
+                  (re-run-prompt (format "Re-run from %s: " (file-name-directory scripts-file-location)))
+                  (chosen-command (completing-read re-run-prompt command-log)))
+             (funcall (funcall cantrip-dispatch-command chosen-command))))
+          ((eq nil args)
+           (let ((script-file-content (cantrip--get-scripts-from-json-file scripts-file-location)))
+             (cantrip--make-transient "cantrip-auto"
+                                      nil
+                                      (cantrip--process-scripts-hash-table script-file-content)
+                                      (cantrip--create-script-dispatcher-args scripts-file-location script-file-content)
+                                      nil)
+             (funcall #'cantrip-auto-root-transient)))
+          (t (message "cantrip | out of options, send help...")))))
 
 ;;;###autoload
 (defun cantrip-define-prefix (source-file namespace)
@@ -172,19 +209,23 @@ NAMESPACE.  It returns the transient function."
                                         "transient")))
                "-"))
 
+(defun cantrip--prepare-compile-command (args script-key v transient-name-key)
+  "Build a compilation command from ARGS, SCRIPT-KEY, V, and TRANSIENT-NAME-KEY."
+  (let* ((args--long (seq-find (lambda (i) (string= "--long" i)) args))
+         (args--append (seq-find (lambda (i) (string-prefix-p "--append=" i t)) args))
+         (command-args
+          (if (string-prefix-p "--append=" args--append t)
+              (replace-regexp-in-string "--append=" "" args--append)
+            ""))
+         (localized-cmd (funcall cantrip-transform-command script-key v command-args)))
+    localized-cmd))
+
 (defun cantrip--compile-args (script-key v transient-name-key)
   "Create a function to compile SCRIPT-KEY V with args from TRANSIENT-NAME-KEY."
   (lambda (&optional args)
     (interactive (list (transient-args (intern transient-name-key))))
-    (let* ((args--long (seq-find (lambda (i) (string= "--long" i)) args))
-           (args--append (seq-find (lambda (i) (string-prefix-p "--append=" i t)) args))
-           (command-args
-            (if (string-prefix-p "--append=" args--append t)
-                (replace-regexp-in-string "--append=" "" args--append)
-              ""))
-           (localized-cmd (funcall cantrip-transform-command script-key v command-args)))
-      ;; TODO(john): when args--long, do the compilation in a dedicated buffer
-      (funcall (funcall cantrip-dispatch-command localized-cmd)))))
+      (funcall (funcall cantrip-dispatch-command
+                        (cantrip--prepare-compile-command args script-key v transient-name-key)))))
 
 ;;;###autoload
 (defun cantrip--compile (command)
