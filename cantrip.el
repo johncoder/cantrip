@@ -117,12 +117,6 @@ transient."
         ""
       (completing-read re-run-prompt command-log))))
 
-(defun cantrip-rerun ()
-  "Rerun a recent command in the current directory."
-  (interactive)
-  (let ((scripts-file-location (cantrip--autolocate-scripts-file)))
-    (cantrip--rerun scripts-file-location)))
-
 (defun cantrip--rerun (scripts-file-location)
   "Rerun a recent command in SCRIPTS-FILE-LOCATION."
   (let ((chosen-command (cantrip--get-rerun-command scripts-file-location)))
@@ -131,6 +125,13 @@ transient."
       (progn
         (cantrip--rotate-command scripts-file-location chosen-command)
         (funcall (funcall cantrip-dispatch-command chosen-command))))))
+
+;;;###autoload
+(defun cantrip-rerun ()
+  "Rerun a recent command in the current directory."
+  (interactive)
+  (let ((scripts-file-location (cantrip--autolocate-scripts-file)))
+    (cantrip--rerun scripts-file-location)))
 
 ;;;###autoload
 (defun cantrip-run (args)
