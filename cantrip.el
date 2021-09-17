@@ -48,6 +48,10 @@
 
 (defvar-local cantrip--repository-command-log (make-hash-table :test #'equal))
 
+(defun cantrip--reset-repository-command-log ()
+  "Reset CANTRIP--REPOSITORY-COMMAND-LOG to an empty hash table."
+  (setq-local cantrip--repository-command-log (make-hash-table :test #'equal)))
+
 (defun cantrip--empty-p (s)
   "Is S an empty string."
   (string= "" s))
@@ -75,8 +79,8 @@
             (cantrip--compile script)
           (message "cantrip | script %s not found" script-key))))))
 
-(defun cantrip--rotate-command (script-file-location command-string)
-  "Update the CANTRIP--REPOSITORY-COMMAND-LOG entry for SCRIPT-FILE-LOCATION with COMMAND-STRING."
+(defun cantrip--rotate-command (scripts-file-location command-string)
+  "Update the CANTRIP--REPOSITORY-COMMAND-LOG entry for SCRIPTS-FILE-LOCATION with COMMAND-STRING."
   (let* ((command-log (gethash scripts-file-location cantrip--repository-command-log '()))
          (updated-log (seq-take (seq-uniq (append (list command-string) command-log) #'equal)
                                 cantrip-command-log-count)))
@@ -98,17 +102,35 @@ transient."
         (cond ((not (eq nil script))
                (lambda (&optional args)
                  (interactive (list (transient-args (intern transient-args-key))))
-                 (let* ((command-log (gethash scripts-file-location cantrip--repository-command-log '()))
-                        (command-to-run (cantrip--prepare-compile-command args script-key script transient-args-key))
-                        (updated-log (seq-take (seq-uniq (append (list command-to-run) command-log) #'equal)
-                                               cantrip-command-log-count)))
-                   (puthash scripts-file-location
-                            updated-log
-                            cantrip--repository-command-log)
+                 (let ((command-to-run (cantrip--prepare-compile-command args script-key script transient-args-key)))
+                   (cantrip--rotate-command scripts-file-location command-to-run)
                    (funcall (funcall cantrip-dispatch-command command-to-run)))))
               (t (lambda ()
                    (interactive)
                    (message "cantrip | script %s not found" script-key))))))))
+
+(defun cantrip--get-rerun-command (scripts-file-location)
+  "Prompt for a command to rerun from SCRIPTS-FILE-LOCATION."
+  (let* ((command-log (gethash scripts-file-location cantrip--repository-command-log))
+         (re-run-prompt (format "Re-run from %s: " (file-name-directory scripts-file-location))))
+    (if (eq nil command-log)
+        ""
+      (completing-read re-run-prompt command-log))))
+
+(defun cantrip-rerun ()
+  "Rerun a recent command in the current directory."
+  (interactive)
+  (let ((scripts-file-location (cantrip--autolocate-scripts-file)))
+    (cantrip--rerun scripts-file-location)))
+
+(defun cantrip--rerun (scripts-file-location)
+  "Rerun a recent command in SCRIPTS-FILE-LOCATION."
+  (let ((chosen-command (cantrip--get-rerun-command scripts-file-location)))
+    (if (string= chosen-command "")
+        (message "cantrip | no commands to re-run yet")
+      (progn
+        (cantrip--rotate-command scripts-file-location chosen-command)
+        (funcall (funcall cantrip-dispatch-command chosen-command))))))
 
 ;;;###autoload
 (defun cantrip-run (args)
@@ -119,11 +141,7 @@ When ARGS is provided, prompt selection from the command log."
     (cond ((not scripts-file-location)
            (message "cantrip | No scripts file found."))
           ((not (eq nil args))
-           (let* ((command-log (gethash scripts-file-location cantrip--repository-command-log))
-                  (foo (progn (pp cantrip--repository-command-log) 42))
-                  (re-run-prompt (format "Re-run from %s: " (file-name-directory scripts-file-location)))
-                  (chosen-command (completing-read re-run-prompt command-log)))
-             (funcall (funcall cantrip-dispatch-command chosen-command))))
+           (cantrip--rerun scripts-file-location))
           ((eq nil args)
            (let ((script-file-content (cantrip--get-scripts-from-json-file scripts-file-location)))
              (cantrip--make-transient "cantrip-auto"
