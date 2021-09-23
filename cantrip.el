@@ -52,6 +52,18 @@
   "Reset CANTRIP--REPOSITORY-COMMAND-LOG to an empty hash table."
   (setq-local cantrip--repository-command-log (make-hash-table :test #'equal)))
 
+(defvar-local cantrip--loaded-script-files (make-hash-table :test #'equal))
+
+(defun cantrip--reset-loaded-script-files ()
+  "Reset CANTRIP--LOADED-SCRIPT-FILES to an empty hash table."
+  (setq-local cantrip--loaded-script-files (make-hash-table :test #'equal)))
+
+(defvar-local cantrip--script-file-content-hashes (make-hash-table :test #'equal))
+
+(defun cantrip--reset-script-file-content-hashes ()
+  "Reset CANTRIP--SCRIPT-FILE-CONTENT-HASHES to an empty hash table."
+  (setq-local cantrip--script-file-content-hashes (make-hash-table :test #'equal)))
+
 (defun cantrip--empty-p (s)
   "Is S an empty string."
   (string= "" s))
@@ -66,7 +78,7 @@
     (let ((scripts-file (concat (locate-dominating-file default-directory ".git")
                                 cantrip-default-file)))
       (when (file-exists-p scripts-file)
-        (message "cantrip | found scripts file %s" scripts-file)
+        ;; (message "cantrip | found scripts file %s" scripts-file)
         (return scripts-file)))))
 
 (defun cantrip--create-script-dispatcher (scripts)
@@ -95,7 +107,7 @@ SCRIPTS-FILE-LOCATION is the source for SCRIPTS.  The result
 returned from this function is ultimately what gets passed to
 transient."
   (lambda (transient-args-key)
-    (message "cantrip | dispatcher for transient-args-key: %s" transient-args-key)
+    ;; (message "cantrip | dispatcher for transient-args-key: %s" transient-args-key)
     (lambda (script-key)
       (interactive) ; TODO(john): see if this is still necessary
       (let ((script (gethash script-key scripts)))
@@ -145,6 +157,7 @@ When ARGS is provided, prompt selection from the command log."
            (cantrip--rerun scripts-file-location))
           ((eq nil args)
            (let ((script-file-content (cantrip--get-scripts-from-json-file scripts-file-location)))
+             ;; TODO: cache these transients? it may be necessary to cache the value of cantrip-auto-root-transient?
              (cantrip--make-transient "cantrip-auto"
                                       nil
                                       (cantrip--process-scripts-hash-table script-file-content)
@@ -445,13 +458,43 @@ an alist of previously created transients."
      (t (message "cantrip | unexpected scenario while walking segments")))
     ht))
 
-(defun cantrip--get-scripts-from-json-file (filepath)
-  "Get a hash of scripts from json in FILEPATH."
+(defun cantrip--read-scripts-file (filepath)
+  "Read the content from a scripts file in FILEPATH."
   (let* ((json-object-type 'hash-table)
          (json-key-type 'string)
          (json-array-type 'list)
          (json (json-read-file filepath)))
     (gethash "scripts" json)))
+
+(defun cantrip--parse-scripts-file (content)
+  "Get scripts file from CONTENT."
+  (let* ((json-object-type 'hash-table)
+         (json-key-type 'string)
+         (json-array-type 'list)
+         (json (json-parse-string content)))
+    (gethash "scripts" json)))
+
+(defun cantrip--read-file-contents (filepath)
+  "Read content of FILEPATH and return as string."
+  (with-temp-buffer
+    (insert-file-contents filepath)
+    (buffer-string)))
+
+(defun cantrip--content-hash (content)
+  "Get a hash of the CONTENT."
+  (secure-hash 'sha1 content))
+
+(defun cantrip--get-scripts-from-json-file (filepath)
+  "Get a hash of scripts from json in FILEPATH."
+  (let* ((loaded-file (gethash filepath cantrip--loaded-script-files '()))
+         (content (cantrip--read-file-contents filepath))
+         (checksum (cantrip--content-hash content))
+         (cached-checksum (gethash filepath cantrip--script-file-content-hashes nil)))
+    (when (or (eq nil loaded-file)
+              (eq nil cached-checksum)
+              (not (eq cached-checksum checksum)))
+      (puthash filepath (cantrip--parse-scripts-file content) cantrip--loaded-script-files))
+    (gethash filepath cantrip--loaded-script-files)))
 
 (defun cantrip--process-scripts-hash-table (scripts-hash-table)
   "Process SCRIPTS-HASH-TABLE into a hash-table of aliased commands."
