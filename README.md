@@ -73,7 +73,7 @@ You can alter a command before it is dispatched. For example, if you'd like to r
 ```lisp
 (setq cantrip-transform-command
       #'(lambda (key command args)
-          (if (locate-dominating-file default-directory "yarn.lock")
+          (if (eq default-directory (locate-dominating-file default-directory "yarn.lock"))
               (format "yarn run %s %s" key args)
             (concat command " " args))))
 ```
