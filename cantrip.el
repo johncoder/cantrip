@@ -67,7 +67,7 @@
                                 cantrip-default-file)))
       (when (file-exists-p scripts-file)
         (message "cantrip | found scripts file %s" scripts-file)
-        (return scripts-file)))))
+        (cl-return scripts-file)))))
 
 (defun cantrip--create-script-dispatcher (scripts)
   "Create a dispatcher for SCRIPTS."
@@ -190,8 +190,8 @@ NAMESPACE.  It returns the transient function."
 ;;;###autoload
 (defun cantrip-create-transient (alias actions)
   "Create a transient ALIAS manualy using ACTIONS."
-  (pcase-let ((`(,class ,slots ,suffixes ,docstr ,body)
-               (transient--expand-define-args actions)))
+  (let ((docstr (car actions))
+        (suffixes (cdr actions)))
     (progn
       (defalias alias
         (lambda ()
@@ -269,8 +269,8 @@ NAMESPACE.  It returns the transient function."
          (counter 0))
     (dolist (item (nthcdr 1 (append v nil)))
       (aset current counter item)
-      (incf counter 1)
-      (incf total 1)
+      (cl-incf counter 1)
+      (cl-incf total 1)
       (when (eq (% counter quantity) 0)
         (setq counter 0)
         (setq current (make-vector (min quantity (- (length v) total 1)) 0))
@@ -294,7 +294,7 @@ an alist of previously created transients."
     ;; (message "cantrip | creating transient: %s" transient-function-name)
     (aset actions 0 (if (string= "" menu-label) namespace menu-label))
     (dolist (choice choices)
-      (incf counter 1)
+      (cl-incf counter 1)
       (let* ((choice-value (gethash choice ht))
              (label (cond ((stringp choice-value)
                            (if (string= "$segment-identity" choice-value)
@@ -405,7 +405,7 @@ an alist of previously created transients."
                          (string= segment
                                   (gethash (cantrip--symbol "$segment-label")
                                            ht-candidate-value))))
-            (return candidate-string)))))))
+            (cl-return candidate-string)))))))
 
 (defun cantrip--walk-segments (segments ht)
   "Recur on SEGMENTS nesting each segment under hash-table HT."
